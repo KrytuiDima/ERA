@@ -23,27 +23,39 @@ function renderExplore(q) {
   const all = [...SU, ...stored.filter(u=>!SU.find(s=>s.id===u.id))];
   const filtered = sq ? all.filter(u=>u.username.toLowerCase().includes(sq)||(u.displayName||'').toLowerCase().includes(sq)) : all;
 
+  const myVibe = currentVibeColor(APP.user || {baseColor:'#00c6ff'});
+  const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
+
   document.getElementById('feed-container').innerHTML = `
 <div style="padding:12px 12px 6px">
   <input class="explore-inp" id="explore-inp" placeholder="${t('explore.placeholder')}" value="${esc(q)}" oninput="renderExplore(this.value)">
 </div>
 ${filtered.length===0
   ? `<div class="empty-state"><div class="empty-ico">🔍</div><div class="empty-txt">${t('explore.notFound')}</div></div>`
-  : `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px;padding:4px">
+  : `<div style="padding: 4px; display: flex; flex-direction: column; gap: 4px">
     ${filtered.map(u => {
-      const bg = postGrad(u);
-      const uPosts = POSTS.filter(p=>p.userId===u.id);
-      const firstImg = uPosts.length>0 ? (getPostImages(uPosts[0])||[])[0] : null;
       const frnd = isFriend(u.id);
+      const isF = getFollowStatus(u.id) === 'following';
+      const isReq = getFollowStatus(u.id) === 'requested';
       const cols = vibeColors(u.baseColor, hashStr(u.id));
-      return `<div style="aspect-ratio:1;overflow:hidden;cursor:pointer;position:relative;background:${bg}" onclick="openUserCard('${u.id}')">
-        ${firstImg ? `<img src="${firstImg}" style="width:100%;height:100%;object-fit:cover;display:block">` : ''}
-        <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.7) 0%,transparent 55%)"></div>
-        ${frnd?`<div style="position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:50%;background:${cols[0]};box-shadow:0 0 5px ${cols[0]}"></div>`:''}
-        ${isUserPrivate(u.id)?`<div style="position:absolute;top:5px;left:5px;font-size:10px">🔒</div>`:''}
-        <div style="position:absolute;bottom:6px;left:6px;display:flex;align-items:center;gap:5px">
-          <div style="width:20px;height:20px;border-radius:50%;overflow:hidden">${avatarHTML(u,20)}</div>
-          <span style="font-size:10px;color:#fff;font-weight:500">@${esc(u.username)}</span>
+
+      let statusTxt = '';
+      if (frnd) statusTxt = t('profile.friends');
+      else if (isF) statusTxt = t('profile.youFollow');
+      else if (isReq) statusTxt = t('profile.requested');
+
+      return `<div class="rp-user" style="background: var(--s1); border: 1px solid var(--b1); padding: 12px" onclick="openUserCard('${u.id}')">
+        <div style="width:44px;height:44px;flex-shrink:0;position:relative">
+          ${avatarHTML(u,44,{friend:true})}
+          ${isUserPrivate(u.id)?`<div style="position:absolute;bottom:-2px;right:-2px;font-size:10px;background:var(--s2);border-radius:50%;padding:2px">🔒</div>`:''}
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:600;color:var(--t1)">@${esc(u.username)}</div>
+          <div style="font-size:12px;color:var(--t2)">${esc(u.displayName||'')}</div>
+          ${statusTxt ? `<div style="font-size:10px; color:${frnd ? myCols[0] : 'var(--t3)'}; margin-top:2px">${statusTxt}</div>` : ''}
+        </div>
+        <div style="width:60px;height:30px;border-radius:4px;overflow:hidden;border:1px solid var(--b1)">
+          ${makeVibeCode(u.baseColor, u.id, 60, 30)}
         </div>
       </div>`;
     }).join('')}

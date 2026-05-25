@@ -15,16 +15,20 @@ function expandPost(pid, ctx) {
   buildLightbox();
 }
 
-function _closeLightboxInternal() {
+function _closeLightboxInternal(fromPopState=false) {
   const pid = LB_LIST[LB_IDX]?.id;
   const lb  = document.getElementById('lightbox'); if(!lb) return;
   lb.style.transition='opacity .2s ease'; lb.style.opacity='0';
-  setTimeout(()=>{ lb.remove(); unlockScroll(); if(pid) syncFeedToPost(pid); }, 190);
+  setTimeout(()=>{
+    lb.remove();
+    unlockScroll();
+    if(pid) syncFeedToPost(pid);
+    if(!fromPopState && _histDepth > 0) { _histDepth--; history.back(); }
+  }, 190);
 }
 
 function closeLightbox() {
   _closeLightboxInternal();
-  if (_histDepth>0) { _histDepth--; history.back(); }
 }
 
 function syncFeedToPost(pid) {
@@ -59,7 +63,7 @@ function buildLightbox(dir=0) {
   const lb=document.createElement('div'); lb.id='lightbox';
   lb.innerHTML=`
     <button class="lb-close" onclick="closeLightbox()">×</button>
-    <div class="lb-wrap" id="lb-wrap-${p.id}">
+    <div class="lb-wrap" id="lb-wrap-${p.id}" style="will-change: transform, opacity">
       <div class="lb-img-area" id="lb-img-${p.id}">${imgHTML}</div>
       <div class="lb-meta">
         <div style="width:34px;height:34px;border-radius:50%;overflow:hidden;cursor:pointer" onclick="closeLightbox();${own?`setView('profile')`:`openUserCard('${u.id}')`}">${avatarHTML(u,34,{friend:true})}</div>
@@ -96,23 +100,59 @@ function buildLightbox(dir=0) {
 
   lb.addEventListener('wheel', e=>{ e.preventDefault(); lbNav(e.deltaY>0?1:-1); },{passive:false});
 
-  let lbSx=0,lbSy=0,lbSwiping=false,lbOnImg=false;
-  lb.addEventListener('touchstart',e=>{lbSx=e.touches[0].clientX;lbSy=e.touches[0].clientY;lbSwiping=false;lbOnImg=!!e.target.closest('.lb-img-area');},{passive:true});
-  lb.addEventListener('touchmove', e=>{const dx=Math.abs(e.touches[0].clientX-lbSx),dy=Math.abs(e.touches[0].clientY-lbSy);if(dx>dy&&dx>8)lbSwiping=true;},{passive:true});
-  lb.addEventListener('touchend', e=>{
-    if(!lbSwiping)return; lbSwiping=false;
-    const dx=e.changedTouches[0].clientX-lbSx; if(Math.abs(dx)<40)return;
-    if(hasMulti&&lbOnImg){
-      if(dx<0){if(lbCarState.idx<lbCarState.total-1){lbCarState.idx++;updateLbCarUI(p.id);}else lbNav(1);}
-      else    {if(lbCarState.idx>0){lbCarState.idx--;updateLbCarUI(p.id);}else lbNav(-1);}
-    } else lbNav(dx<0?1:-1);
-  },{passive:true});
+  if(hasMulti) {
+    setTimeout(() => initCarousel(p.id, imgs.length, true), 0);
+  }
 
   const wrapEl=lb.querySelector('.lb-wrap');
   let vSY=0,vDrag=false;
-  wrapEl.addEventListener('touchstart',e=>{if(e.target.closest('.lb-img-area'))return;if(wrapEl.scrollTop>0)return;vSY=e.touches[0].clientY;vDrag=true;wrapEl.style.transition='none';},{passive:true});
-  wrapEl.addEventListener('touchmove', e=>{if(!vDrag)return;const dy=e.touches[0].clientY-vSY;if(dy>0){wrapEl.style.transform=`translateY(${dy*.75}px)`;lb.style.opacity=String(Math.max(0,1-dy/350));e.preventDefault();}},{passive:false});
-  wrapEl.addEventListener('touchend', e=>{if(!vDrag)return;vDrag=false;const dy=e.changedTouches[0].clientY-vSY;wrapEl.style.transition='transform .25s ease';if(dy>90){wrapEl.style.transform='translateY(100vh)';lb.style.transition='opacity .22s';lb.style.opacity='0';setTimeout(()=>closeLightbox(),210);}else{wrapEl.style.transform='';lb.style.opacity='';setTimeout(()=>{wrapEl.style.transition='';lb.style.transition='';},300);}},{passive:true});
+
+  const onVStart = e => {
+    // If we're on the image and it's a single photo, allow swipe-to-close everywhere
+    // If it's a carousel, only allow swipe-to-close if we're swiping vertically
+    vSY=e.touches ? e.touches[0].clientY : e.clientY;
+    vDrag=true;
+    wrapEl.style.transition='none';
+  };
+
+  const onVMove = e => {
+    if(!vDrag) return;
+    const y = e.touches ? e.touches[0].clientY : e.clientY;
+    const dy = y - vSY;
+    const absDy = Math.abs(dy);
+
+    if(absDy > 10) {
+      const scale = Math.max(0.7, 1 - absDy/1000);
+      const opacity = Math.max(0, 1 - absDy/400);
+      wrapEl.style.transform = `translateY(${dy}px) scale(${scale})`;
+      lb.style.opacity = opacity;
+      if(e.cancelable) e.preventDefault();
+    }
+  };
+
+  const onVEnd = e => {
+    if(!vDrag) return;
+    vDrag = false;
+    const y = e.changedTouches ? e.changedTouches[0].clientY : (e.clientY || vSY);
+    const dy = y - vSY;
+    wrapEl.style.transition='transform .3s cubic-bezier(.22,1,.36,1), opacity .3s';
+    if(Math.abs(dy) > 120) {
+      wrapEl.style.transform = `translateY(${dy > 0 ? '100vh' : '-100vh'}) scale(0.5)`;
+      lb.style.opacity = '0';
+      setTimeout(() => closeLightbox(), 250);
+    } else {
+      wrapEl.style.transform = '';
+      lb.style.opacity = '1';
+    }
+  };
+
+  lb.addEventListener('touchstart', onVStart, {passive:true});
+  lb.addEventListener('touchmove', onVMove, {passive:false});
+  lb.addEventListener('touchend', onVEnd, {passive:true});
+
+  lb.addEventListener('mousedown', onVStart);
+  window.addEventListener('mousemove', onVMove);
+  window.addEventListener('mouseup', onVEnd);
 
   const imgArea=lb.querySelector('.lb-img-area');
   let lbTapT=null,lbTapMoved=false,lbTapSX=0,lbTapSY=0;
@@ -127,11 +167,6 @@ function buildLightbox(dir=0) {
   document.body.appendChild(lb);
 }
 
-function updateLbCarUI(pid) {
-  const idx=lbCarState.idx;
-  const track=document.getElementById('lb-ct-'+pid); if(track)track.style.transform=`translateX(-${idx*100}%)`;
-  document.querySelectorAll(`#lb-cd-${pid} .c-dot`).forEach((d,i)=>{d.classList.toggle('on',i===idx);d.style.width=i===idx?'14px':'6px';});
-}
 
 function lbDoubleTap(pid, imgArea) {
   const p=POSTS.find(x=>x.id===pid); if(!p) return;

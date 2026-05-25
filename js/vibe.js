@@ -91,10 +91,16 @@ function avatarHTML(user, size=38, opts={}) {
   const vibe = currentVibeColor(user);
   const cols = vibeColors(vibe, hashStr(user.id));
   const isFrnd = opts.friend && isFriend(user.id);
+
+  // Якщо юзер — друг, витягуємо колір власного вайбу авторизованого юзера для контуру
+  const myVibe = currentVibeColor(APP.user || {baseColor:'#00c6ff'});
+  const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
+
+  const borderColor = isFrnd ? myCols[0] : cols[0];
   const border = isFrnd
-    ? `3px solid ${cols[0]}` // friend neon ring
+    ? `3px solid ${borderColor}` // friend neon ring (using MY vibe color as per request)
     : `2.5px solid ${cols[0]}55`;
-  const glow = isFrnd ? `box-shadow:0 0 8px ${cols[0]}88;` : '';
+  const glow = isFrnd ? `box-shadow:0 0 10px ${borderColor}aa;` : '';
   const cls = isFrnd ? ' ava-friend' : '';
 
   if (user.avatar) {

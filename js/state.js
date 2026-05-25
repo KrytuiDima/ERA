@@ -29,13 +29,13 @@ const REACT_LIST = ['😂','🔥','😢','😮','👏'];
 
 // ── Sample users ─────────────────────────────────────────
 const SU = [
-  { id:'u1', username:'xyn0',      displayName:'Xyn',       bio:'digital artist. lines over pixels.',     baseColor:'#00ffcc', avatar:null, privacy:'public' },
-  { id:'u2', username:'v0id.art',  displayName:'Void',      bio:'abstract / glitch / nothing.',           baseColor:'#ff2d55', avatar:null, privacy:'private' },
-  { id:'u3', username:'glitch_wav',displayName:'GlitchWav', bio:'sound → visual.',                        baseColor:'#6600ff', avatar:null, privacy:'public' },
-  { id:'u4', username:'nxova',     displayName:'Nxova',     bio:'захід. скло. туман.',                    baseColor:'#ff9500', avatar:null, privacy:'public' },
-  { id:'u5', username:'pxlr.io',   displayName:'Pxlr',      bio:'system.exe still running.',              baseColor:'#007aff', avatar:null, privacy:'public' },
-  { id:'u6', username:'rrm_exe',   displayName:'rrm',       bio:"frequencies you can't hear.",            baseColor:'#cc00ff', avatar:null, privacy:'private' },
-  { id:'u7', username:'coldloop',  displayName:'coldloop',  bio:'ніч. місто. тиша.',                      baseColor:'#30d158', avatar:null, privacy:'public' },
+  { id:'u1', username:'xyn0',      displayName:'Xyn',       bio:'digital artist. lines over pixels.',     website:'https://xyn.art', banner:null, baseColor:'#00ffcc', avatar:null, privacy:'public' },
+  { id:'u2', username:'v0id.art',  displayName:'Void',      bio:'abstract / glitch / nothing.',           website:'',                banner:null, baseColor:'#ff2d55', avatar:null, privacy:'private' },
+  { id:'u3', username:'glitch_wav',displayName:'GlitchWav', bio:'sound → visual.',                        website:'',                banner:null, baseColor:'#6600ff', avatar:null, privacy:'public' },
+  { id:'u4', username:'nxova',     displayName:'Nxova',     bio:'захід. скло. туман.',                    website:'',                banner:null, baseColor:'#ff9500', avatar:null, privacy:'public' },
+  { id:'u5', username:'pxlr.io',   displayName:'Pxlr',      bio:'system.exe still running.',              website:'',                banner:null, baseColor:'#007aff', avatar:null, privacy:'public' },
+  { id:'u6', username:'rrm_exe',   displayName:'rrm',       bio:"frequencies you can't hear.",            website:'',                banner:null, baseColor:'#cc00ff', avatar:null, privacy:'private' },
+  { id:'u7', username:'coldloop',  displayName:'coldloop',  bio:'ніч. місто. тиша.',                      website:'',                banner:null, baseColor:'#30d158', avatar:null, privacy:'public' },
 ];
 
 // ── Sample posts ─────────────────────────────────────────
@@ -76,11 +76,19 @@ function getPostImages(post) {
 }
 
 function fmtTime(ts) {
-  const d = Date.now()-ts;
-  if (d < 60000)   return t('time.justNow');
-  if (d < 3600000) return Math.floor(d/60000)+t('time.min');
-  if (d < 86400000)return Math.floor(d/3600000)+t('time.hour');
-  return Math.floor(d/86400000)+t('time.day');
+  const d = Date.now() - ts;
+  if (d < 60000) return t('time.justNow');
+  if (d < 3600000) {
+    const m = Math.floor(d / 60000);
+    return m + ' ' + t('time.min', { n: m });
+  }
+  if (d < 86400000) {
+    const h = Math.floor(d / 3600000);
+    return h + ' ' + t('time.hour', { n: h });
+  }
+  const days = Math.floor(d / 86400000);
+  if (days === 1) return t('time.yesterday');
+  return days + ' ' + t('time.day', { n: days });
 }
 
 function fmtN(n) {
@@ -105,7 +113,7 @@ function todayKey() {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
-function saveUserData() {
+async function saveUserData() {
   localStorage.setItem('era_session', JSON.stringify(APP.user));
   const users = JSON.parse(localStorage.getItem('era_users')||'[]');
   const idx = users.findIndex(u=>u.id===APP.user.id);

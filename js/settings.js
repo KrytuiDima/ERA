@@ -36,7 +36,11 @@ function renderSettings() {
     </div>
     <div style="margin-bottom:14px">
       <div class="f-label">${t('settings.bio')} <span style="color:var(--t3)">${t('settings.bioHint')}</span></div>
-      <textarea class="s-input s-textarea" id="s-bio" maxlength="150">${esc(u.bio||'')}</textarea>
+      <textarea class="s-input s-textarea" id="s-bio" maxlength="150" style="height:60px">${esc(u.bio||'')}</textarea>
+    </div>
+    <div style="margin-bottom:14px">
+      <div class="f-label">Website (URL)</div>
+      <input class="s-input" id="s-website" value="${esc(u.website||'')}" placeholder="https://…">
     </div>
     <button class="s-btn s-btn-save" onclick="saveProfile()">${t('settings.saveProfile')}</button>
   </div>
@@ -116,10 +120,11 @@ function saveProfile() {
   const dname    = document.getElementById('s-dname').value.trim();
   const username = document.getElementById('s-username').value.replace('@','').trim();
   const bio      = document.getElementById('s-bio').value.trim();
+  const website  = document.getElementById('s-website').value.trim();
   if (!dname) { showToast(t('settings.fillRequired')); return; }
   if (username.length<2) { showToast(t('auth.usernameMin')); return; }
   if (!/^[a-zA-Z0-9._]+$/.test(username)) { showToast(t('auth.usernameInvalid')); return; }
-  APP.user.displayName=dname; APP.user.username=username; APP.user.bio=bio;
+  APP.user.displayName=dname; APP.user.username=username; APP.user.bio=bio; APP.user.website=website;
   saveUserData();
   document.getElementById('sb-dname').textContent  = dname;
   document.getElementById('sb-handle').textContent = '@'+username;

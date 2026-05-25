@@ -8,6 +8,8 @@ function renderProfile(uid) {
   const frnd = isFriend(uid);
   const vibe = currentVibeColor(u);
   const cols = vibeColors(vibe, hashStr(u.id));
+  const myVibe = currentVibeColor(APP.user || {baseColor:'#00c6ff'});
+  const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
   const followers = own ? Math.floor(srand(hashStr(uid+55))*800+10) : Math.floor(srand(hashStr(uid+33))*1200+50);
   const following  = own ? [...FOLLOWS.values()].filter(s=>s==='following').length : Math.floor(srand(hashStr(uid+22))*400+5);
   const reqCount   = own ? getRequestCount() : 0;
@@ -34,12 +36,14 @@ function renderProfile(uid) {
 
   // Private + no access
   const canSee = !isUserPrivate(uid) || own || isF;
+  const bannerImg = u.banner ? `<img src="${u.banner}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0">` : '';
 
   document.getElementById('feed-container').innerHTML = `
-<div class="profile-cover">
-  <div class="profile-cover-inner">${makeVibeCode(vibe,u.id,600,120)}</div>
+<div class="profile-cover" ${own?`onclick="document.getElementById('pban-f').click()" title="${t('profile.changeBanner')}"`:''}>
+  <div class="profile-cover-inner">${bannerImg || makeVibeCode(vibe,u.id,600,120)}</div>
   <div class="profile-cover-fade"></div>
   <div class="profile-cover-lbl">${t('profile.vibe')}</div>
+  ${own?`<input type="file" id="pban-f" accept="image/*" class="hidden" onchange="changeBanner(event)">`:''}
 </div>
 <div class="profile-info">
   <div class="profile-ava-row">
@@ -55,9 +59,10 @@ function renderProfile(uid) {
         : ''}
     </div>
   </div>
-  <div class="profile-dname">${esc(u.displayName||u.username)}${frnd?` <span style="font-size:11px;color:${cols[0]};font-weight:400">· ${t('profile.friends')}</span>`:''}</div>
+  <div class="profile-dname">${esc(u.displayName||u.username)}${frnd?` <span style="font-size:11px;color:${myCols[0]};font-weight:400">· ${t('profile.friends')}</span>`:''}</div>
   <div class="profile-handle">@${esc(u.username)}</div>
   ${u.bio?`<div class="profile-bio">${esc(u.bio)}</div>`:''}
+  ${u.website?`<div class="profile-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><a href="${u.website.startsWith('http')?u.website:'https://'+u.website}" target="_blank">${u.website.replace(/^https?:\/\//,'')}</a></div>`:''}
   <div class="profile-stats">
     <div><div class="ps-n">${followers}</div><div class="ps-l">${t('profile.followers')}</div></div>
     <div><div class="ps-n">${following}</div><div class="ps-l">${t('profile.following')}</div></div>
@@ -97,10 +102,24 @@ function changeAva(e) {
   const f=e.target.files[0]; if(!f) return;
   const r=new FileReader();
   r.onload=ev=>{
-    APP.user.avatar=ev.target.result; saveUserData();
-    document.getElementById('sb-ava').innerHTML=avatarHTML(APP.user,34);
-    document.getElementById('bn-ava').innerHTML=avatarHTML(APP.user,24);
-    renderProfile(APP.user.id); showToast(t('profile.photoUpdated'));
+    showCropTool(ev.target.result, res => {
+      APP.user.avatar=res; saveUserData();
+      document.getElementById('sb-ava').innerHTML=avatarHTML(APP.user,34);
+      document.getElementById('bn-ava').innerHTML=avatarHTML(APP.user,24);
+      renderProfile(APP.user.id); showToast(t('profile.photoUpdated'));
+    }, { ratio: 1, round: true });
+  };
+  r.readAsDataURL(f);
+}
+
+function changeBanner(e) {
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    showCropTool(ev.target.result, res => {
+      APP.user.banner=res; saveUserData();
+      renderProfile(APP.user.id); showToast(t('profile.photoUpdated'));
+    }, { ratio: 5/1 }); // Adjusted banner ratio
   };
   r.readAsDataURL(f);
 }
@@ -119,6 +138,9 @@ function openUserCard(uid) {
   else if (status==='requested') { btnTxt=t('profile.requested'); btnCls='requested'; }
   else btnTxt=t('profile.follow');
   document.getElementById('uc-ttl').textContent='@'+u.username;
+  const myVibe = currentVibeColor(APP.user || {baseColor:'#00c6ff'});
+  const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
+
   document.getElementById('uc-body').innerHTML=`
 <div class="uc-cover">
   <div class="uc-cover-inner">${makeVibeCode(u.baseColor,u.id,400,80)}</div>
@@ -126,10 +148,10 @@ function openUserCard(uid) {
 </div>
 <div class="uc-body">
   <div style="position:relative;width:56px;height:56px;margin-bottom:8px">
-    <div style="position:absolute;inset:-4px;border-radius:50%;background:linear-gradient(135deg,${cols[0]},${cols[1]});filter:blur(6px);opacity:${frnd?.8:.5};z-index:0"></div>
+    <div style="position:absolute;inset:-4px;border-radius:50%;background:linear-gradient(135deg,${frnd ? myCols[0] : cols[0]},${frnd ? myCols[1] : cols[1]});filter:blur(6px);opacity:${frnd?.8:.5};z-index:0"></div>
     <div class="uc-ava" style="z-index:1;position:relative">${avatarHTML(u,56,{friend:true})}</div>
   </div>
-  <div style="font-size:16px;font-weight:700">${esc(u.displayName||u.username)}${frnd?` <span style="font-size:11px;color:${cols[0]}">· ${t('profile.friends')}</span>`:''}</div>
+  <div style="font-size:16px;font-weight:700">${esc(u.displayName||u.username)}${frnd?` <span style="font-size:11px;color:${myCols[0]}">· ${t('profile.friends')}</span>`:''}</div>
   <div style="font-size:12px;color:var(--t2);margin-bottom:${u.bio?'6px':'12px'}">@${esc(u.username)}</div>
   ${u.bio?`<div style="font-size:12px;color:var(--t2);line-height:1.5;margin-bottom:12px">${esc(u.bio)}</div>`:''}
   ${isUserPrivate(uid)?`<div style="font-size:11px;color:var(--t3);margin-bottom:8px">🔒 Закритий акаунт</div>`:''}
