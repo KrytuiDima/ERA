@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>ERA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/era.css">
+</head>
+<body>
+
+<!-- ── AUTH ─────────────────────────────────────────────── -->
+<div id="auth-screen">
+  <div class="auth-glow"></div>
+  <div class="auth-box">
+    <div class="era-logo">
+      <div class="era-logo-mark">
+        <svg width="40" height="40" viewBox="0 0 40 40"><defs><linearGradient id="lg0" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#00c6ff"/><stop offset="100%" stop-color="#9945ff"/></linearGradient></defs><rect x="6" y="6" width="6" height="28" rx="1.5" fill="url(#lg0)"/><rect x="17" y="10" width="8" height="20" rx="1.5" fill="url(#lg0)" opacity=".8"/><rect x="30" y="14" width="4" height="12" rx="1" fill="url(#lg0)" opacity=".6"/></svg>
+      </div>
+      <div class="era-logotype">ERA</div>
+      <div class="era-tagline" data-i18n="auth.tagline">Твій цифровий відбиток</div>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="authTab('login')" data-i18n="auth.login">Вхід</button>
+      <button class="auth-tab"        onclick="authTab('reg')"   data-i18n="auth.register">Реєстрація</button>
+    </div>
+    <!-- Login -->
+    <div id="form-login" class="auth-form">
+      <div>
+        <div class="f-label" data-i18n="auth.username">Нікнейм</div>
+        <input class="f-input" id="l-user" type="text" placeholder="@username" autocomplete="username">
+      </div>
+      <div>
+        <div class="f-label" data-i18n="auth.password">Пароль</div>
+        <input class="f-input" id="l-pass" type="password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <div class="auth-err" id="l-err"></div>
+      <button class="f-btn" onclick="doLogin()" data-i18n="auth.signIn">Увійти</button>
+      <div class="auth-switch"><span data-i18n="auth.noAccount">Немає акаунту?</span> <span onclick="authTab('reg')" data-i18n="auth.register" style="color:var(--blue);cursor:pointer">Зареєструватись</span></div>
+    </div>
+    <!-- Register -->
+    <div id="form-reg" class="auth-form hidden">
+      <div>
+        <div class="f-label"><span data-i18n="auth.photoOptional">Фото профілю (необов'язково)</span></div>
+        <div class="ava-upload-row">
+          <div class="ava-circle" id="reg-ava-c" onclick="document.getElementById('reg-ava-f').click()">
+            <span id="reg-ava-plus" style="font-size:24px;color:var(--t3)">+</span>
+            <img id="reg-ava-img" class="hidden" src="" alt="">
+          </div>
+          <input type="file" id="reg-ava-f" accept="image/*" class="hidden" onchange="onRegAva(event)">
+          <div style="font-size:12px;color:var(--t2);line-height:1.5" data-i18n="auth.avatarHint">Завантаж фото або залиш — буде кольоровий аватар</div>
+        </div>
+      </div>
+      <div>
+        <div class="f-label" data-i18n="auth.displayName">Ім'я для відображення</div>
+        <input class="f-input" id="r-dname" type="text" placeholder="…">
+      </div>
+      <div>
+        <div class="f-label">
+          <span data-i18n="auth.username">Нікнейм</span>
+          <span style="color:var(--t3);font-size:10px;margin-left:4px" data-i18n="auth.usernameHint">(латиниця, цифри, . _)</span>
+        </div>
+        <input class="f-input" id="r-user" type="text" placeholder="username" oninput="updateVibePrev();cleanUsername(this)" autocomplete="username">
+      </div>
+      <div>
+        <div class="f-label" data-i18n="auth.password">Пароль</div>
+        <input class="f-input" id="r-pass" type="password" placeholder="••••••••" autocomplete="new-password">
+      </div>
+      <div>
+        <div class="f-label" data-i18n="auth.vibeColor">Базовий колір — твій Vibe</div>
+        <div class="vibe-row">
+          <input type="color" class="vibe-swatch" id="r-color" value="#00c6ff" oninput="updateVibePrev()" onchange="updateVibePrev()">
+          <div class="vibe-strip" id="r-vibe-strip"><div class="vibe-strip-lbl">VIBE CODE</div></div>
+        </div>
+      </div>
+      <div class="auth-err" id="r-err"></div>
+      <button class="f-btn" onclick="doRegister()" data-i18n="auth.createProfile">Створити профіль</button>
+      <div class="auth-switch"><span data-i18n="auth.hasAccount">Є акаунт?</span> <span onclick="authTab('login')" data-i18n="auth.login" style="color:var(--blue);cursor:pointer">Увійти</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── MOOD ──────────────────────────────────────────────── -->
+<div id="mood-screen" class="hidden">
+  <div class="mood-card">
+    <div class="mood-head">
+      <div class="mood-greeting" data-i18n="mood.question">Як твій настрій сьогодні?</div>
+      <div class="mood-sub">
+        <span data-i18n="mood.subtitle">Допоможе показати відповідний контент у стрічці «Для тебе»</span>
+        <span class="mood-disable" onclick="skipMood()" data-i18n="mood.disable">Можна вимкнути в Налаштуваннях → Персоналізація</span>
+      </div>
+    </div>
+    <div class="mood-grid" id="mood-grid"></div>
+    <button class="mood-confirm" id="mood-confirm" onclick="confirmMood()" data-i18n="mood.confirm">Продовжити →</button>
+  </div>
+</div>
+
+<!-- ── APP ───────────────────────────────────────────────── -->
+<div id="app" class="hidden">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-mark">
+        <svg width="22" height="22" viewBox="0 0 40 40"><defs><linearGradient id="lg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#00c6ff"/><stop offset="100%" stop-color="#9945ff"/></linearGradient></defs><rect x="6" y="6" width="6" height="28" rx="1.5" fill="url(#lg1)"/><rect x="17" y="10" width="8" height="20" rx="1.5" fill="url(#lg1)" opacity=".8"/><rect x="30" y="14" width="4" height="12" rx="1" fill="url(#lg1)" opacity=".6"/></svg>
+      </div>
+      <span class="sb-logo-text">ERA</span>
+    </div>
+
+    <button class="nav-btn active" id="nb-feed" onclick="setView('feed')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span data-i18n="feed.home">Головна</span>
+    </button>
+    <button class="nav-btn" id="nb-explore" onclick="setView('explore')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <span data-i18n="feed.search">Пошук</span>
+    </button>
+    <button class="nav-post-btn" onclick="openCreatePost()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      <span data-i18n="feed.newPost">Новий пост</span>
+    </button>
+    <button class="nav-btn" id="nb-notif" onclick="setView('notif')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span data-i18n="feed.notifications">Сповіщення</span>
+    </button>
+    <button class="nav-btn" id="nb-profile" onclick="setView('profile')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span data-i18n="feed.profile">Профіль</span>
+    </button>
+    <button class="nav-btn" id="nb-settings" onclick="setView('settings')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span data-i18n="feed.settings">Налаштування</span>
+    </button>
+
+    <div class="sb-spacer"></div>
+    <div class="sb-user" onclick="setView('profile')">
+      <div id="sb-ava" style="width:34px;height:34px;border-radius:50%;overflow:hidden;flex-shrink:0"></div>
+      <div style="flex:1;min-width:0">
+        <div class="sb-uname" id="sb-dname">—</div>
+        <div class="sb-uhandle" id="sb-handle">@—</div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Center -->
+  <main class="main-area">
+    <div class="feed-header" id="feed-header">
+      <button class="feed-tab-btn active" id="ftb-foryou"    onclick="setFeed('foryou')"    data-i18n="feed.forYou">Для тебе</button>
+      <button class="feed-tab-btn"        id="ftb-following"  onclick="setFeed('following')" data-i18n="feed.following">Підписаний</button>
+    </div>
+    <div id="feed-container"></div>
+  </main>
+
+  <!-- Right panel -->
+  <aside class="right-panel">
+    <div style="margin-bottom:24px">
+      <div class="rp-title" data-i18n="rp.recommended">Рекомендовані</div>
+      <div id="rp-suggest"></div>
+    </div>
+    <div>
+      <div class="rp-title" data-i18n="rp.spectrums">Популярні Спектри</div>
+      <div id="rp-spectrums"></div>
+    </div>
+  </aside>
+
+  <!-- Mobile bottom nav -->
+  <nav class="bottom-nav">
+    <div class="bn-inner">
+      <button class="bn-btn active" id="bn-feed" onclick="setView('feed')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span data-i18n="feed.feed">Стрічка</span>
+      </button>
+      <button class="bn-btn" id="bn-explore" onclick="setView('explore')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span data-i18n="feed.search">Пошук</span>
+      </button>
+      <button class="bn-post" onclick="openCreatePost()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <button class="bn-btn" id="bn-notif" onclick="setView('notif')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span data-i18n="notif.title">Нотіф</span>
+      </button>
+      <button class="bn-btn" id="bn-profile" onclick="setView('profile')">
+        <div id="bn-ava" style="width:24px;height:24px;border-radius:50%;overflow:hidden"></div>
+        <span data-i18n="feed.profile">Профіль</span>
+      </button>
+    </div>
+  </nav>
+</div>
+
+<!-- ── MODALS ────────────────────────────────────────────── -->
+<div class="overlay hidden" id="modal-create" onclick="ovClose(event,'modal-create')">
+  <div class="sheet" id="sheet-create">
+    <div class="sheet-handle" id="handle-create"></div>
+    <div class="sheet-hdr">
+      <span class="sheet-title" data-i18n="feed.newPost">Новий пост</span>
+      <button class="sheet-x" onclick="closeModal('modal-create')">×</button>
+    </div>
+    <div class="sheet-body">
+      <div class="upload-zone" id="upload-zone">
+        <input type="file" id="post-file" accept="image/*" multiple class="hidden" onchange="onPostFile(event)">
+        <div id="upload-ph" onclick="document.getElementById('post-file').click()">
+          <div class="upload-ico">📷</div>
+          <div class="upload-hint">
+            <span data-i18n="post.addPhotos">Натисни або перетягни фото</span><br>
+            <span style="color:var(--t3);font-size:10px" data-i18n="post.addPhotosHint">Можна вибрати декілька</span>
+          </div>
+        </div>
+        <div id="upload-grid" class="upload-grid hidden"></div>
+      </div>
+      <div class="desc-wrap">
+        <textarea class="desc-ta" id="desc-ta" maxlength="300" oninput="updateDescCnt()"></textarea>
+        <span class="desc-cnt" id="desc-cnt">0/300</span>
+      </div>
+      <button class="f-btn" onclick="submitPost()" style="width:100%" data-i18n="post.publish">Опублікувати</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="modal-cmt" onclick="ovClose(event,'modal-cmt')">
+  <div class="sheet" id="sheet-cmt" style="max-height:94dvh">
+    <div class="sheet-handle" id="handle-cmt"></div>
+    <div class="sheet-hdr">
+      <span class="sheet-title" data-i18n="post.comments">Коментарі</span>
+      <button class="sheet-x" onclick="closeModal('modal-cmt')">×</button>
+    </div>
+    <div class="sheet-body" id="cmt-body"></div>
+    <div id="cmt-ph-prev" class="cmt-ph-prev hidden">
+      <img id="cmt-ph-img" src="" alt="">
+      <button class="cmt-ph-rm" onclick="rmCmtPh()">×</button>
+    </div>
+    <input type="file" id="cmt-file" accept="image/*" class="hidden" onchange="onCmtFile(event)">
+    <div class="cmt-bar">
+      <div id="cmt-bar-ava" class="cmt-ava" style="width:30px;height:30px;flex-shrink:0"></div>
+      <button class="cmt-cam" onclick="document.getElementById('cmt-file').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      </button>
+      <input class="cmt-input" id="cmt-input" type="text" onkeydown="if(event.key==='Enter')sendCmt()" data-i18n-ph="post.commentPlaceholder" placeholder="Написати коментар…">
+      <button class="cmt-send" onclick="sendCmt()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay center hidden" id="modal-user" onclick="ovClose(event,'modal-user')">
+  <div class="sheet" id="sheet-user">
+    <div class="sheet-handle" id="handle-user"></div>
+    <div class="sheet-hdr">
+      <span class="sheet-title" id="uc-ttl">Профіль</span>
+      <button class="sheet-x" onclick="closeModal('modal-user')">×</button>
+    </div>
+    <div class="sheet-body" id="uc-body" style="padding:0"></div>
+  </div>
+</div>
+
+<!-- ── CROP ───────────────────────────────────────────────── -->
+<div id="crop-modal" class="hidden">
+  <div class="crop-hdr">
+    <button class="crop-cancel" onclick="cancelCrop()" data-i18n="crop.cancel">Скасувати</button>
+    <span class="crop-title" data-i18n="crop.title">Обрізати фото</span>
+    <button class="crop-apply" onclick="applyCrop()" data-i18n="crop.apply">Використати →</button>
+  </div>
+  <div class="crop-stage" id="crop-stage">
+    <img id="crop-img" src="" alt="">
+    <div class="crop-mask" id="crop-mask"></div>
+    <div class="crop-hint" data-i18n="crop.hint">Перетягни фото · два пальці = масштаб</div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<!-- ── SCRIPTS (порядок важливий) ───────────────────────── -->
+<script src="lang/uk.js"></script>
+<script src="lang/ru.js"></script>
+<script src="lang/en.js"></script>
+<script src="js/lang.js"></script>
+<script src="js/vibe.js"></script>
+<script src="js/state.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/social.js"></script>
+<script src="js/create.js"></script>
+<script src="js/feed.js"></script>
+<script src="js/lightbox.js"></script>
+<script src="js/profile.js"></script>
+<script src="js/notif.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
