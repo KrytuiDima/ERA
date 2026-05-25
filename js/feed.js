@@ -66,8 +66,10 @@ function renderPostCard(post, delay=0) {
     imgContent = `<div class="carousel-track" id="ct-${post.id}">${imgs.map(i=>`<div class="carousel-slide"><img src="${i}" alt="" draggable="false"></div>`).join('')}</div><div class="carousel-dots" id="cd-${post.id}">${imgs.map((_,i)=>`<div class="c-dot${i===0?' on':''}"></div>`).join('')}</div><div class="carousel-ctr" id="cc-${post.id}">1/${imgs.length}</div>`;
   }
 
+  const myVibe = currentVibeColor(APP.user || {baseColor:'#00c6ff'});
+  const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
   const friendMark = frnd
-    ? `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${cols[0]};margin-left:5px;box-shadow:0 0 5px ${cols[0]};vertical-align:middle" title="Друг"></span>`
+    ? `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${myCols[0]};margin-left:5px;box-shadow:0 0 5px ${myCols[0]};vertical-align:middle" title="Друг"></span>`
     : '';
 
   return `<div class="post-card" style="animation-delay:${delay}ms" id="post-${post.id}"
@@ -79,7 +81,7 @@ function renderPostCard(post, delay=0) {
       <div class="post-uname" onclick="${own?`setView('profile')`:`openUserCard('${u.id}')`}">@${esc(u.username)}${friendMark}</div>
       <div class="post-time">${fmtTime(post.ts)}</div>
     </div>
-    <div class="vibe-dot" style="background:${cols[0]}${frnd?';box-shadow:0 0 6px '+cols[0]:''}"></div>
+    <div class="vibe-dot" style="background:${frnd ? myCols[0] : cols[0]}${frnd?';box-shadow:0 0 8px '+myCols[0]:''}; ${frnd ? 'outline: 1px solid ' + myCols[0] : ''}"></div>
   </div>
   <div class="post-img-wrap${hasMulti?' carousel-wrap':''}" id="img-${post.id}"
     ondblclick="feedDblTap(event,'${post.id}')"
@@ -235,13 +237,28 @@ function openCmts(pid) {
 function renderCmt(c) {
   const u=getUser(c.userId);
   const frnd=isFriend(c.userId);
+  const myVibe = currentVibeColor(APP.user || {baseColor:'#00c6ff'});
+  const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
+
   return `<div class="cmt-item">
   <div class="cmt-ava" style="cursor:pointer" onclick="openUserCard('${u.id}')">${avatarHTML(u,30,{friend:true})}</div>
   <div class="cmt-bwrap">
-    <div><span class="cmt-uname" style="cursor:pointer" onclick="openUserCard('${u.id}')">@${esc(u.username)}</span>${frnd?`<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${vibeColors(currentVibeColor(u),hashStr(u.id))[0]};margin-left:4px;vertical-align:middle"></span>`:''}<span class="cmt-utime">${fmtTime(c.ts)}</span></div>
+    <div><span class="cmt-uname" style="cursor:pointer" onclick="openUserCard('${u.id}')">@${esc(u.username)}</span>${frnd?`<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${myCols[0]};margin-left:4px;vertical-align:middle"></span>`:''}<span class="cmt-utime">${fmtTime(c.ts)}</span></div>
     ${c.text?`<div class="cmt-text">${esc(c.text)}</div>`:''}
-    ${c.photo?`<img class="cmt-photo-img" src="${c.photo}" alt="">`:''}
+    ${c.photo?`<img class="cmt-photo-img" src="${c.photo}" alt="" onclick="expandPhoto('${c.photo}')" style="cursor:pointer; width:60px; height:60px; object-fit:cover; border-radius:8px">`:''}
   </div></div>`;
+}
+
+function expandPhoto(src) {
+  const lb=document.createElement('div'); lb.id='lightbox';
+  lb.innerHTML=`
+    <button class="lb-close" onclick="this.parentElement.remove();unlockScroll()">×</button>
+    <div class="lb-wrap" style="align-items:center;justify-content:center;height:100%">
+      <img src="${src}" style="max-width:100%;max-height:90vh;border-radius:12px">
+    </div>`;
+  lb.onclick=e=>{if(e.target===lb) {lb.remove();unlockScroll();}};
+  lockScroll();
+  document.body.appendChild(lb);
 }
 
 function onCmtFile(e) {

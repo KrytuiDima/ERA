@@ -70,7 +70,7 @@ function doRegister() {
   // Check uniqueness against BOTH sample users AND registered users
   if (_isUsernameTaken(u)) { err.textContent=t('auth.usernameTaken'); return; }
   const users=JSON.parse(localStorage.getItem('era_users')||'[]');
-  const nu={id:'u_'+Date.now(),username:u,displayName:dname,bio:'',avatar:regAvaData||null,
+  const nu={id:'u_'+Date.now(),username:u,displayName:dname,bio:'',website:'',banner:null,avatar:regAvaData||null,
     baseColor:c,password:p,settings:{moodPrompt:true},privacy:'public',pinnedPosts:[]};
   users.push(nu);
   localStorage.setItem('era_users',JSON.stringify(users));

@@ -121,7 +121,7 @@ window.ERA_LANG.uk = {
   },
   explore:{ placeholder:'Пошук юзерів…', notFound:'Нікого не знайдено' },
   rp:{ recommended:'Рекомендовані', spectrums:'Популярні Спектри', follow:'Стежити', following:'Стежу' },
-  time:{ justNow:'щойно', min:'хв', hour:'г', day:'д' },
+  time:{ justNow:'щойно', min:'хв тому', hour:'год тому', day:'дн. тому', yesterday: 'вчора' },
   errors:{ fillDesc:'Додай фото або опис', unknown:'Щось пішло не так' },
   lang:{ title:'Мова / Language', cancel:'Скасувати' },
 };

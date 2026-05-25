@@ -75,15 +75,22 @@ function toggleFollowUser(uid, btn) {
 }
 
 // ── Approve / Decline ─────────────────────────────────────
-function approveRequest(fromUid) {
-  FOLLOWERS.set(fromUid,true);
+async function approveRequest(fromUid) {
+  // Action 1: Allow viewing content (become a follower)
+  FOLLOWERS.set(fromUid, true);
   REQUESTS.delete(fromUid);
-  // Remove the request notification, replace with "approved" notif
   _removeRequestNotif(fromUid);
-  addNotif({type:'approved', fromUid:APP.user.id, toUid:fromUid});
+  addNotif({ type: 'approved', fromUid: APP.user.id, toUid: fromUid });
   showToast(t('profile.requestApproved'));
   if (document.getElementById('follow-requests-screen')) renderFollowRequests();
+  if (APP.view === 'profile') renderProfile(APP.profileUid);
+  if (APP.view === 'notif') renderNotif();
   renderNotifBadge();
+}
+
+function followBack(uid) {
+  followUser(uid);
+  if (APP.view === 'notif') renderNotif();
 }
 
 function declineRequest(fromUid) {

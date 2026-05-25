@@ -4,10 +4,6 @@ function renderNotif() {
   const grouped = _groupNotifs(NOTIFS);
   const unread  = NOTIFS.filter(n=>n.unread).length;
 
-  // Mark all as read once tab is opened
-  NOTIFS.forEach(n=>n.unread=false);
-  renderNotifBadge();
-
   document.getElementById('feed-container').innerHTML = `
 <div style="padding:14px 16px 10px;border-bottom:1px solid var(--b1);display:flex;align-items:center;justify-content:space-between">
   <span style="font-size:15px;font-weight:700">${t('notif.title')}</span>
@@ -16,6 +12,10 @@ function renderNotif() {
 ${grouped.length===0
   ? `<div class="empty-state"><div class="empty-ico">🔔</div><div class="empty-txt">${t('notif.empty')}</div></div>`
   : grouped.map((n,i) => renderNotifRow(n,i)).join('')}`;
+
+  // Mark all as read once tab is opened
+  NOTIFS.forEach(n=>n.unread=false);
+  renderNotifBadge();
 }
 
 function _groupNotifs(notifs) {
@@ -50,9 +50,11 @@ function renderNotifRow(n, idx) {
   const cnt = n._count||0;
   switch (n.type) {
     case 'like':
-      text = cnt>1
-        ? `<strong>@${u.username}</strong> та ще ${cnt-1} вподобали твій пост`
-        : t('notif.likedPost',{user:u.username});
+      if (cnt > 1) {
+        text = `<strong>@${u.username}</strong> ${t('notif.likedManyPosts', { n: cnt - 1 })}`;
+      } else {
+        text = t('notif.likedPost',{user:u.username});
+      }
       break;
     case 'comment':
       text = t('notif.commented',{user:u.username, text:(n.text||'').slice(0,40)});
@@ -77,22 +79,24 @@ function renderNotifRow(n, idx) {
   // Action buttons (inline for follow requests)
   const actionBtns = n.type==='request' ? `
     <div style="display:flex;gap:6px;margin-top:6px">
-      <button onclick="approveRequest('${n.userId}');this.closest('.notif-row').remove();renderNotifBadge()" style="padding:5px 14px;border-radius:7px;background:linear-gradient(135deg,#00c6ff,#9945ff);border:none;color:#000;font-size:12px;font-weight:600;cursor:pointer">${t('notif.approve')}</button>
-      <button onclick="declineRequest('${n.userId}');this.closest('.notif-row').remove()" style="padding:5px 14px;border-radius:7px;background:var(--s3);border:1px solid var(--b1);color:var(--t2);font-size:12px;font-weight:600;cursor:pointer">${t('notif.decline')}</button>
+      <button onclick="event.stopPropagation(); approveRequest('${n.userId}')" style="padding:5px 14px;border-radius:7px;background:linear-gradient(135deg,#00c6ff,#9945ff);border:none;color:#000;font-size:12px;font-weight:600;cursor:pointer">${t('notif.approve')}</button>
+      <button onclick="event.stopPropagation(); declineRequest('${n.userId}')" style="padding:5px 14px;border-radius:7px;background:var(--s3);border:1px solid var(--b1);color:var(--t2);font-size:12px;font-weight:600;cursor:pointer">${t('notif.decline')}</button>
     </div>` : '';
 
   // Follow-back button
-  const followBackBtn = n.type==='follow' && !isFriend(n.userId) && getFollowStatus(n.userId)!=='following'
-    ? `<button onclick="toggleFollowUser('${n.userId}',this);this.style.display='none'" style="padding:5px 14px;border-radius:20px;border:1px solid var(--b2);background:transparent;color:var(--t1);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0">${t('notif.followBack')}</button>`
+  const isReq = getFollowStatus(n.userId) === 'requested';
+  const followBackBtn = (n.type==='follow' || n.type==='approved') && !isFriend(n.userId) && getFollowStatus(n.userId)!=='following'
+    ? `<button onclick="event.stopPropagation(); followBack('${n.userId}')" style="padding:5px 14px;border-radius:20px;border:1px solid var(--b2);background:transparent;color:var(--t1);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0">${isReq ? t('profile.requested') : t('notif.followBack')}</button>`
     : '';
 
-  return `<div class="notif-row" style="display:flex;align-items:flex-start;gap:11px;padding:12px 16px;border-bottom:1px solid var(--b1);animation:fadeUp .22s ease ${idx*30}ms both">
+  return `<div class="notif-row" style="display:flex;align-items:flex-start;gap:11px;padding:12px 16px;border-bottom:1px solid var(--b1);animation:fadeUp .22s ease ${idx*30}ms both; position: relative">
+  ${n.unread ? `<div style="position:absolute;left:4px;top:50%;transform:translateY(-50%);width:6px;height:6px;border-radius:50%;background:${dotColor};box-shadow:0 0 5px ${dotColor}"></div>` : ''}
   <!-- Zone A: Avatar → profile -->
-  <div style="flex-shrink:0;cursor:pointer" onclick="setView('feed');renderFullProfile('${u.id}')">
+  <div style="flex-shrink:0;cursor:pointer" onclick="renderFullProfile('${u.id}')">
     ${avatarHTML(u,38,{friend:true})}
   </div>
   <!-- Zone B: Text + action buttons → post -->
-  <div style="flex:1;cursor:pointer" onclick="${post?`expandPost('${post.id}')`:''}"style="cursor:${post?'pointer':'default'}">
+  <div style="flex:1;cursor:pointer" onclick="${post?`expandPost('${post.id}')`:''}">
     <div style="font-size:13px;color:var(--t2);line-height:1.5">${text}</div>
     <div style="font-size:10px;color:var(--t3);margin-top:2px">${fmtTime(n.ts)}</div>
     ${actionBtns}
