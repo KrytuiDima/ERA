@@ -4,11 +4,21 @@
 function lockScroll()   { document.body.classList.add('scroll-locked'); }
 function unlockScroll() { document.body.classList.remove('scroll-locked'); }
 
-// ── History API ───────────────────────────────────────────
+// ── History API (Керування історією та кнопкою Назад) ─────
 let _histDepth = 0;
-function eraPush(id) { _histDepth++; history.pushState({era:id,depth:_histDepth},'',location.href.split('#')[0]+'#'+id); }
-function eraBack()  { if(_histDepth>0){ history.back(); } else { _closeTopModal(); } }
+// Додаємо стан в історію при відкритті модалок
+function eraPush(id) {
+  _histDepth++;
+  history.pushState({era:id,depth:_histDepth},'',location.href.split('#')[0]+'#'+id);
+}
 
+// Програмне повернення назад
+function eraBack()  {
+  if(_histDepth>0){ history.back(); }
+  else { _closeTopModal(); }
+}
+
+// Закриття верхнього активного вікна
 function _closeTopModal(fromPopState=false) {
   if (document.getElementById('lightbox')) { _closeLightboxInternal(fromPopState); return; }
   if (document.getElementById('pin-replace-dialog')) { document.getElementById('pin-replace-dialog').remove(); return; }
@@ -67,7 +77,7 @@ function closeModal(id) {
 
 function ovClose(e, id) { if(e.target===document.getElementById(id)) closeModal(id); }
 
-// ── Sheet drag-to-close ───────────────────────────────────
+// ── Sheet drag-to-close (Фізика шторки) ───────────────────
 function _makeDraggable(handleId, sheetId, overlayId) {
   const handle = document.getElementById(handleId);
   const sheet  = document.getElementById(sheetId);
@@ -252,19 +262,24 @@ function showPostMenu(pid,x,y) {
   document.body.appendChild(menu);
 }
 
-// ── Crop tool ─────────────────────────────────────────────
+// ── Crop tool (Медіа-редактор) ─────────────────────────────
 let _cropCallback=null, _cropX=0, _cropY=0, _cropScale=1, _cropRotate=0;
 let _cropDragSX=0, _cropDragSY=0, _cropDragOX=0, _cropDragOY=0, _cropDragging=false;
 let _cropPinchDist=0, _cropOptions={};
 
+// Відкриття редактора фото
 function showCropTool(src, callback, opts={}) {
   _cropCallback=callback; _cropX=0; _cropY=0; _cropScale=1; _cropRotate=0;
+  // ratio: 4/5 для постів, 1/1 для аватара, 16/9 для банера
   _cropOptions={ ratio:4/5, round:false, ...opts };
+
   const modal=document.getElementById('crop-modal');
   modal.classList.remove('hidden');
+
   const img=document.getElementById('crop-img');
   const zS=document.getElementById('crop-zoom'), rS=document.getElementById('crop-rotate');
   if(zS){ zS.value=1; } if(rS){ rS.value=0; }
+
   img.onload=()=>{ _fitCrop(img); _drawCropMask(); };
   img.src=src;
   _initCropEvents();

@@ -234,6 +234,7 @@ function openCmts(pid) {
   openModal('modal-cmt');
 }
 
+// Рендеринг одного коментаря
 function renderCmt(c) {
   const u=getUser(c.userId);
   const frnd=isFriend(c.userId);
@@ -245,7 +246,8 @@ function renderCmt(c) {
   <div class="cmt-bwrap">
     <div><span class="cmt-uname" style="cursor:pointer" onclick="openUserCard('${u.id}')">@${esc(u.username)}</span>${frnd?`<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${myCols[0]};margin-left:4px;vertical-align:middle"></span>`:''}<span class="cmt-utime">${fmtTime(c.ts)}</span></div>
     ${c.text?`<div class="cmt-text">${esc(c.text)}</div>`:''}
-    ${c.photo?`<img class="cmt-photo-img" src="${c.photo}" alt="" onclick="expandPhoto('${c.photo}')" style="cursor:pointer; width:60px; height:60px; object-fit:cover; border-radius:8px">`:''}
+    <!-- Фото в коментарі (маленьке квадратне прев'ю) -->
+    ${c.photo?`<div class="cmt-ph-wrap" onclick="expandPhoto('${c.photo}')"><img class="cmt-photo-img" src="${c.photo}" alt="" style="cursor:pointer; width:60px; height:60px; object-fit:cover; border-radius:8px; margin-top:6px; border: 1px solid var(--b1)"></div>`:''}
   </div></div>`;
 }
 

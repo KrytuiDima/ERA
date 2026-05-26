@@ -1,4 +1,4 @@
-// js/lightbox.js — Lightbox with physics
+// js/lightbox.js — Lightbox with physics (Перегляд медіа)
 
 function expandPost(pid, ctx) {
   const p = POSTS.find(x=>x.id===pid);
@@ -37,11 +37,16 @@ function syncFeedToPost(pid) {
   if (card) card.scrollIntoView({behavior:'smooth', block:'center'});
 }
 
+// Навігація між постами (scroll/arrows)
 function lbNav(dir) {
   const next = LB_IDX+dir;
   if (next<0||next>=LB_LIST.length) {
+    // Ефект пружини (rubber-band) при досягненні кінця
     const lb=document.getElementById('lightbox');
-    if (lb) { lb.classList.add(dir>0?'anim-spring-l':'anim-spring-r'); setTimeout(()=>lb.classList.remove('anim-spring-l','anim-spring-r'),400); }
+    if (lb) {
+      lb.classList.add(dir>0?'anim-spring-l':'anim-spring-r');
+      setTimeout(()=>lb.classList.remove('anim-spring-l','anim-spring-r'),400);
+    }
     return;
   }
   LB_IDX=next; buildLightbox(dir);
@@ -168,9 +173,19 @@ function buildLightbox(dir=0) {
 }
 
 
+// Подвійний тап для лайка з анімацією серця
 function lbDoubleTap(pid, imgArea) {
   const p=POSTS.find(x=>x.id===pid); if(!p) return;
-  if(!p.liked){p.liked=true;p.likes++;refreshLikeBtn(pid);}
-  const heart=document.createElement('div'); heart.className='like-heart-anim'; heart.textContent='❤️';
-  imgArea.appendChild(heart); setTimeout(()=>heart.remove(),700);
+  if(!p.liked){
+    p.liked=true;
+    p.likes++;
+    refreshLikeBtn(pid);
+  }
+  // Велика іконка серця по центру
+  const heart=document.createElement('div');
+  heart.className='like-heart-anim';
+  heart.style.fontSize = '100px';
+  heart.textContent='❤️';
+  imgArea.appendChild(heart);
+  setTimeout(()=>heart.remove(),700);
 }

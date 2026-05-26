@@ -1,4 +1,4 @@
-// js/vibe.js — Vibe Code Engine
+// js/vibe.js — Vibe Code Engine (Двигун візуальної ідентичності)
 
 function srand(s) { const x = Math.sin(s + 1.618) * 99991; return x - Math.floor(x); }
 function hashStr(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = (Math.imul(h, 33) ^ s.charCodeAt(i)) >>> 0; return h; }
@@ -23,6 +23,7 @@ function hslToHex(h, s, l) {
   return `#${hx(r)}${hx(g)}${hx(b)}`;
 }
 
+// Генерація гармонійної палітри на основі базового кольору
 function vibeColors(baseHex, seed) {
   const {h,s,l} = hexToHsl(baseHex);
   const S = Math.max(s,60), L = Math.min(Math.max(l,40),68);
@@ -33,7 +34,8 @@ function vibeColors(baseHex, seed) {
   ];
 }
 
-function makeVibeCode(baseHex, uid, w=100, h=100) {
+// Створення SVG штрих-коду (Vibe Code)
+function makeVibeCode(baseHex, uid, w=100, h=100, opts={}) {
   const seed = hashStr(String(uid)), cols = vibeColors(baseHex, seed), gid = 'vc'+seed;
   const N = 9+Math.floor(srand(seed)*7);
   const ws = Array.from({length:N}, (_,i) => .4+srand(seed+i*7+1)*2.2);
@@ -46,7 +48,15 @@ function makeVibeCode(baseHex, uid, w=100, h=100) {
     bars+=`<rect x="${x.toFixed(2)}" y="${yo.toFixed(2)}" width="${bw.toFixed(2)}" height="${bh.toFixed(2)}" fill="${ug?`url(#${gid})`:cols[ci]}" opacity="${op}"/>`;
     x+=bw;
   }
-  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" style="display:block"><defs><linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${cols[0]}"/><stop offset="50%" stop-color="${cols[1]}"/><stop offset="100%" stop-color="${cols[2]}"/></linearGradient></defs><rect width="100" height="100" fill="#090909"/>${bars}<rect width="100" height="100" fill="none" stroke="rgba(255,255,255,.1)" stroke-width=".5"/></svg>`;
+  const isFrnd = opts.friend && isFriend(uid);
+  const myVibe = currentVibeColor(APP.user || {baseColor:'#00c6ff'});
+  const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
+
+  const stroke = isFrnd ? myCols[0] : 'rgba(255,255,255,.1)';
+  const sw = isFrnd ? '4' : '.5';
+  const glow = isFrnd ? `filter: drop-shadow(0 0 3px ${myCols[0]}88);` : '';
+
+  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" style="display:block;${glow}"><defs><linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${cols[0]}"/><stop offset="50%" stop-color="${cols[1]}"/><stop offset="100%" stop-color="${cols[2]}"/></linearGradient></defs><rect width="100" height="100" fill="#090909"/>${bars}<rect width="100" height="100" fill="none" stroke="${stroke}" stroke-width="${sw}"/></svg>`;
 }
 
 function postGrad(user) {
@@ -86,7 +96,7 @@ function saveMoodHist(id) {
   localStorage.setItem(k, JSON.stringify(filtered.slice(-30)));
 }
 
-// Avatar: photo or colored initials with optional friend-ring
+// Генерація HTML для аватара (фото або ініціали з кільцем вайбу)
 function avatarHTML(user, size=38, opts={}) {
   const vibe = currentVibeColor(user);
   const cols = vibeColors(vibe, hashStr(user.id));
