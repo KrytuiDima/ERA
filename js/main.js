@@ -16,7 +16,7 @@ function setView(v) {
   else if (v==='settings') renderSettings();
 }
 
-// ── Explore ───────────────────────────────────────────────
+// ── Explore (Пошук користувачів) ───────────────────────────
 function renderExplore(q) {
   const sq = q.toLowerCase();
   const stored = JSON.parse(localStorage.getItem('era_users')||'[]');
@@ -45,17 +45,20 @@ ${filtered.length===0
       else if (isReq) statusTxt = t('profile.requested');
 
       return `<div class="rp-user" style="background: var(--s1); border: 1px solid var(--b1); padding: 12px" onclick="openUserCard('${u.id}')">
+        <!-- Аватар з неоновим контуром для друзів -->
         <div style="width:44px;height:44px;flex-shrink:0;position:relative">
           ${avatarHTML(u,44,{friend:true})}
           ${isUserPrivate(u.id)?`<div style="position:absolute;bottom:-2px;right:-2px;font-size:10px;background:var(--s2);border-radius:50%;padding:2px">🔒</div>`:''}
         </div>
+        <!-- Інфо та статус відносин -->
         <div style="flex:1;min-width:0">
           <div style="font-size:14px;font-weight:600;color:var(--t1)">@${esc(u.username)}</div>
           <div style="font-size:12px;color:var(--t2)">${esc(u.displayName||'')}</div>
           ${statusTxt ? `<div style="font-size:10px; color:${frnd ? myCols[0] : 'var(--t3)'}; margin-top:2px">${statusTxt}</div>` : ''}
         </div>
+        <!-- Штрих-код Vibe Code -->
         <div style="width:60px;height:30px;border-radius:4px;overflow:hidden;border:1px solid var(--b1)">
-          ${makeVibeCode(u.baseColor, u.id, 60, 30)}
+          ${makeVibeCode(u.baseColor, u.id, 60, 30, {friend:true})}
         </div>
       </div>`;
     }).join('')}

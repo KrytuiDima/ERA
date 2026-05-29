@@ -11,18 +11,19 @@ function getFriendIds() {
 }
 
 // ── Follow / Unfollow ─────────────────────────────────────
-function followUser(uid) {
+// Підписка на користувача (враховуючи приватність)
+async function followUser(uid) {
   const user=getUser(uid), isPrivate=user?.privacy==='private';
   if (isPrivate) {
     FOLLOWS.set(uid,'requested');
-    saveFollowsToStorage();
-    // Only add ONE request notification — check for existing first
+    await saveFollowsToStorage();
+    // Додаємо запит, якщо його ще немає
     const already=NOTIFS.find(n=>n.userId===APP.user.id&&n.type==='request'&&!n._processed);
     if (!already) addNotif({type:'request', fromUid:APP.user.id, toUid:uid});
     showToast(t('social.requestSent',{user:user.username}));
   } else {
     FOLLOWS.set(uid,'following');
-    saveFollowsToStorage();
+    await saveFollowsToStorage();
     const wasFollowedBack=FOLLOWERS.get(uid)===true;
     if (wasFollowedBack) {
       showToast(t('social.nowFriends',{user:user.username}));
@@ -33,39 +34,41 @@ function followUser(uid) {
   }
 }
 
-function unfollowUser(uid) {
+// Відписка
+async function unfollowUser(uid) {
   const user=getUser(uid);
   FOLLOWS.delete(uid);
-  saveFollowsToStorage();
+  await saveFollowsToStorage();
   showToast(t('social.unfollowed',{user:user?.username||uid}));
   renderRightPanel();
 }
 
-function cancelFollowRequest(uid) {
+// Скасування запиту на підписку
+async function cancelFollowRequest(uid) {
   FOLLOWS.delete(uid);
-  saveFollowsToStorage();
-  // Remove any pending notification for this request
+  await saveFollowsToStorage();
   _removeRequestNotif(uid);
   showToast(t('social.requestCancelled'));
 }
 
 function _removeRequestNotif(fromUid) {
-  // Remove ALL request notifications from this user to avoid spam
   const before=NOTIFS.length;
+  // Видаляємо всі нотіфікації про запити від цього юзера
   NOTIFS.splice(0, NOTIFS.length, ...NOTIFS.filter(n=>!(n.userId===fromUid&&n.type==='request')));
   if (NOTIFS.length!==before) renderNotifBadge();
 }
 
-function toggleFollowUser(uid, btn) {
+// Перемикач підписки (для кнопок)
+async function toggleFollowUser(uid, btn) {
   const status=getFollowStatus(uid);
   if (status==='following') {
-    unfollowUser(uid);
+    await unfollowUser(uid);
     if (btn){btn.textContent=t('profile.follow');btn.classList.remove('on');}
   } else if (status==='requested') {
-    cancelFollowRequest(uid);
+    await cancelFollowRequest(uid);
     if (btn){btn.textContent=t('profile.follow');btn.classList.remove('requested');}
   } else {
-    followUser(uid);
+    await followUser(uid);
     const user=getUser(uid);
     if (btn){
       if (user?.privacy==='private'){btn.textContent=t('profile.requested');btn.classList.add('requested');}
@@ -75,25 +78,33 @@ function toggleFollowUser(uid, btn) {
 }
 
 // ── Approve / Decline ─────────────────────────────────────
+// Схвалення запиту: Крок 1 — Дозволити перегляд
 async function approveRequest(fromUid) {
-  // Action 1: Allow viewing content (become a follower)
+  // Користувач стає підписником
   FOLLOWERS.set(fromUid, true);
   REQUESTS.delete(fromUid);
-  _removeRequestNotif(fromUid);
+
+  // Позначаємо нотіфікацію як оброблену (в майбутньому для БД)
+  const n = NOTIFS.find(x=>x.userId===fromUid && x.type==='request');
+  if(n) n._approved = true;
+
   addNotif({ type: 'approved', fromUid: APP.user.id, toUid: fromUid });
   showToast(t('profile.requestApproved'));
+
+  // Оновлюємо UI
   if (document.getElementById('follow-requests-screen')) renderFollowRequests();
   if (APP.view === 'profile') renderProfile(APP.profileUid);
   if (APP.view === 'notif') renderNotif();
   renderNotifBadge();
 }
 
-function followBack(uid) {
-  followUser(uid);
+// Крок 2 — Підписатися у відповідь (стають друзями)
+async function followBack(uid) {
+  await followUser(uid);
   if (APP.view === 'notif') renderNotif();
 }
 
-function declineRequest(fromUid) {
+async function declineRequest(fromUid) {
   REQUESTS.delete(fromUid);
   // Remove ALL notifications related to this request — no notification to requester
   _removeRequestNotif(fromUid);
@@ -132,23 +143,31 @@ function getPinnedPosts(uid) {
   return (u?.pinnedPosts||[]).filter(pid=>POSTS.find(p=>p.id===pid));
 }
 
-function pinPost(pid) {
+// Закріплення поста (макс 3)
+async function pinPost(pid) {
   if (!APP.user) return;
   const pinned=APP.user.pinnedPosts||[];
   if (pinned.includes(pid)) return;
-  if (pinned.length>=MAX_PINS){showPinReplaceDialog(pid);return;}
+
+  // Якщо вже 3 закріплено — показуємо модалку заміни
+  if (pinned.length>=MAX_PINS){
+    showPinReplaceDialog(pid);
+    return;
+  }
+
   APP.user.pinnedPosts=[pid,...pinned];
   const p=POSTS.find(x=>x.id===pid); if(p) p.pinned=true;
-  saveUserData();
+  await saveUserData();
   showToast(t('post.pinned'));
   if (APP.view==='profile') renderProfile(APP.user.id);
 }
 
-function unpinPost(pid) {
+// Відкріплення
+async function unpinPost(pid) {
   if (!APP.user) return;
   APP.user.pinnedPosts=(APP.user.pinnedPosts||[]).filter(id=>id!==pid);
   const p=POSTS.find(x=>x.id===pid); if(p) p.pinned=false;
-  saveUserData();
+  await saveUserData();
   showToast(t('post.unpinned'));
   if (APP.view==='profile') renderProfile(APP.user.id);
 }
@@ -177,14 +196,18 @@ function showPinReplaceDialog(newPid) {
   document.body.appendChild(lb);
 }
 
-function replacePinWith(oldPid,newPid) {
+// Заміна одного закріпленого поста іншим
+async function replacePinWith(oldPid,newPid) {
   if (!APP.user) return;
   const pinned=APP.user.pinnedPosts||[];
-  const idx=pinned.indexOf(oldPid); if(idx>=0) pinned[idx]=newPid;
+  const idx=pinned.indexOf(oldPid);
+  if(idx>=0) pinned[idx]=newPid;
+
   APP.user.pinnedPosts=pinned;
   const oldP=POSTS.find(x=>x.id===oldPid); if(oldP) oldP.pinned=false;
   const newP=POSTS.find(x=>x.id===newPid); if(newP) newP.pinned=true;
-  saveUserData();
+
+  await saveUserData();
   showToast(t('post.pinned'));
   if (APP.view==='profile') renderProfile(APP.user.id);
 }

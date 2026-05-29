@@ -34,10 +34,11 @@ function renderProfile(uid) {
     followBtn = `<button class="profile-follow-btn" id="pfb" onclick="toggleFollowUser('${uid}',this)">${t('profile.follow')}</button>`;
   }
 
-  // Private + no access
+  // Private + no access logic
   const canSee = !isUserPrivate(uid) || own || isF;
   const bannerImg = u.banner ? `<img src="${u.banner}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0">` : '';
 
+  // Рендеринг профілю
   document.getElementById('feed-container').innerHTML = `
 <div class="profile-cover" ${own?`onclick="document.getElementById('pban-f').click()" title="${t('profile.changeBanner')}"`:''}>
   <div class="profile-cover-inner">${bannerImg || makeVibeCode(vibe,u.id,600,120)}</div>
@@ -61,8 +62,8 @@ function renderProfile(uid) {
   </div>
   <div class="profile-dname">${esc(u.displayName||u.username)}${frnd?` <span style="font-size:11px;color:${myCols[0]};font-weight:400">· ${t('profile.friends')}</span>`:''}</div>
   <div class="profile-handle">@${esc(u.username)}</div>
-  ${u.bio?`<div class="profile-bio">${esc(u.bio)}</div>`:''}
-  ${u.website?`<div class="profile-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><a href="${u.website.startsWith('http')?u.website:'https://'+u.website}" target="_blank">${u.website.replace(/^https?:\/\//,'')}</a></div>`:''}
+  ${u.bio?`<div class="profile-bio">${esc(u.bio).slice(0,150)}</div>`:''}
+  ${u.website?`<div class="profile-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><a href="${u.website.startsWith('http')?u.website:'https://'+u.website}" target="_blank" rel="noopener noreferrer">${u.website.replace(/^https?:\/\//,'')}</a></div>`:''}
   <div class="profile-stats">
     <div><div class="ps-n">${followers}</div><div class="ps-l">${t('profile.followers')}</div></div>
     <div><div class="ps-n">${following}</div><div class="ps-l">${t('profile.following')}</div></div>
@@ -112,6 +113,7 @@ function changeAva(e) {
   r.readAsDataURL(f);
 }
 
+// Зміна банера профілю (кропер 16:9)
 function changeBanner(e) {
   const f=e.target.files[0]; if(!f) return;
   const r=new FileReader();
@@ -119,7 +121,7 @@ function changeBanner(e) {
     showCropTool(ev.target.result, res => {
       APP.user.banner=res; saveUserData();
       renderProfile(APP.user.id); showToast(t('profile.photoUpdated'));
-    }, { ratio: 5/1 }); // Adjusted banner ratio
+    }, { ratio: 16/9 });
   };
   r.readAsDataURL(f);
 }

@@ -1,5 +1,6 @@
-// js/notif.js — Smart notifications center
+// js/notif.js — Smart notifications center (Інтелектуальний центр сповіщень)
 
+// Рендеринг списку сповіщень
 function renderNotif() {
   const grouped = _groupNotifs(NOTIFS);
   const unread  = NOTIFS.filter(n=>n.unread).length;
@@ -36,16 +37,19 @@ function _groupNotifs(notifs) {
   return out;
 }
 
+// Рендеринг одного рядка сповіщення
 function renderNotifRow(n, idx) {
   const u    = getUser(n.userId);
   const post = n.postId ? POSTS.find(p=>p.id===n.postId) : null;
   const postBg  = post ? postGrad(getUser(post.userId)) : '';
   const postImg = post ? (getPostImages(post)||[])[0] : null;
+
+  // Колір маркера новизни — власний Vibe користувача
   const vibe    = currentVibeColor(APP.user||{baseColor:'#00c6ff',id:'me'});
   const vcols   = vibeColors(vibe, hashStr(APP.user?.id||'me'));
-  const dotColor= vcols[0]; // user's own vibe colour for unread dot
+  const dotColor= vcols[0];
 
-  // Build text
+  // Тексти сповіщень
   let text = '';
   const cnt = n._count||0;
   switch (n.type) {
@@ -65,7 +69,9 @@ function renderNotifRow(n, idx) {
         : t('notif.followed',{user:u.username});
       break;
     case 'request':
-      text = t('notif.wantsToFollow',{user:u.username});
+      text = n._approved
+        ? t('notif.followed', {user:u.username})
+        : t('notif.wantsToFollow',{user:u.username});
       break;
     case 'approved':
       text = t('notif.requestApproved',{user:u.username});
@@ -76,33 +82,38 @@ function renderNotifRow(n, idx) {
     default: text = `@${u.username}`;
   }
 
-  // Action buttons (inline for follow requests)
-  const actionBtns = n.type==='request' ? `
+  // Кнопки дій для запитів (тільки якщо ще не схвалено)
+  const actionBtns = (n.type==='request' && !n._approved) ? `
     <div style="display:flex;gap:6px;margin-top:6px">
       <button onclick="event.stopPropagation(); approveRequest('${n.userId}')" style="padding:5px 14px;border-radius:7px;background:linear-gradient(135deg,#00c6ff,#9945ff);border:none;color:#000;font-size:12px;font-weight:600;cursor:pointer">${t('notif.approve')}</button>
       <button onclick="event.stopPropagation(); declineRequest('${n.userId}')" style="padding:5px 14px;border-radius:7px;background:var(--s3);border:1px solid var(--b1);color:var(--t2);font-size:12px;font-weight:600;cursor:pointer">${t('notif.decline')}</button>
     </div>` : '';
 
-  // Follow-back button
+  // Кнопка підписки у відповідь (Action 2)
   const isReq = getFollowStatus(n.userId) === 'requested';
-  const followBackBtn = (n.type==='follow' || n.type==='approved') && !isFriend(n.userId) && getFollowStatus(n.userId)!=='following'
+  const followBackBtn = (n.type==='follow' || n.type==='approved' || (n.type==='request' && n._approved)) && !isFriend(n.userId) && getFollowStatus(n.userId)!=='following'
     ? `<button onclick="event.stopPropagation(); followBack('${n.userId}')" style="padding:5px 14px;border-radius:20px;border:1px solid var(--b2);background:transparent;color:var(--t1);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0">${isReq ? t('profile.requested') : t('notif.followBack')}</button>`
     : '';
 
   return `<div class="notif-row" style="display:flex;align-items:flex-start;gap:11px;padding:12px 16px;border-bottom:1px solid var(--b1);animation:fadeUp .22s ease ${idx*30}ms both; position: relative">
+  <!-- Маркер новизни (крапка кольору юзера) -->
   ${n.unread ? `<div style="position:absolute;left:4px;top:50%;transform:translateY(-50%);width:6px;height:6px;border-radius:50%;background:${dotColor};box-shadow:0 0 5px ${dotColor}"></div>` : ''}
-  <!-- Zone A: Avatar → profile -->
+
+  <!-- Zone A: Аватар -> перехід у профіль -->
   <div style="flex-shrink:0;cursor:pointer" onclick="renderFullProfile('${u.id}')">
     ${avatarHTML(u,38,{friend:true})}
   </div>
-  <!-- Zone B: Text + action buttons → post -->
+
+  <!-- Zone B: Текст -> відкриття поста/коментаря -->
   <div style="flex:1;cursor:pointer" onclick="${post?`expandPost('${post.id}')`:''}">
     <div style="font-size:13px;color:var(--t2);line-height:1.5">${text}</div>
     <div style="font-size:10px;color:var(--t3);margin-top:2px">${fmtTime(n.ts)}</div>
     ${actionBtns}
   </div>
+
   ${followBackBtn}
-  <!-- Zone C: Post thumbnail → lightbox -->
+
+  <!-- Zone C: Мініатюра поста -> відкриття у Лайтбоксі -->
   ${post?`<div style="width:42px;height:42px;border-radius:7px;overflow:hidden;flex-shrink:0;background:${postBg};cursor:pointer" onclick="expandPost('${post.id}')">${postImg?`<img src="${postImg}" style="width:100%;height:100%;object-fit:cover">`:''}</div>`:''}
 </div>`;
 }

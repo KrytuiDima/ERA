@@ -80,15 +80,15 @@ function fmtTime(ts) {
   if (d < 60000) return t('time.justNow');
   if (d < 3600000) {
     const m = Math.floor(d / 60000);
-    return m + ' ' + t('time.min', { n: m });
+    return t('time.min', { n: m });
   }
   if (d < 86400000) {
     const h = Math.floor(d / 3600000);
-    return h + ' ' + t('time.hour', { n: h });
+    return t('time.hour', { n: h });
   }
   const days = Math.floor(d / 86400000);
   if (days === 1) return t('time.yesterday');
-  return days + ' ' + t('time.day', { n: days });
+  return t('time.day', { n: days });
 }
 
 function fmtN(n) {
@@ -114,19 +114,21 @@ function todayKey() {
 }
 
 async function saveUserData() {
+  // Майбутня інтеграція з Supabase Auth/Database
   localStorage.setItem('era_session', JSON.stringify(APP.user));
   const users = JSON.parse(localStorage.getItem('era_users')||'[]');
   const idx = users.findIndex(u=>u.id===APP.user.id);
   if (idx>=0) { users[idx]={...users[idx],...APP.user}; localStorage.setItem('era_users',JSON.stringify(users)); }
 }
 
-function saveFollowsToStorage() {
+async function saveFollowsToStorage() {
+  // Збереження підписок (майбутній Supabase)
   const data = {};
   FOLLOWS.forEach((status,uid) => data[uid]=status);
   localStorage.setItem('era_follows_'+APP.user?.id, JSON.stringify(data));
 }
 
-function loadFollowsFromStorage() {
+async function loadFollowsFromStorage() {
   if (!APP.user) return;
   const data = JSON.parse(localStorage.getItem('era_follows_'+APP.user.id)||'{}');
   Object.entries(data).forEach(([uid,status]) => FOLLOWS.set(uid,status));

@@ -11,14 +11,22 @@ function openCreatePost() {
   openModal('modal-create');
 }
 
+// Обробка вибраних фото для поста
 function onPostFile(e) {
   const files = Array.from(e.target.files||[]); if(!files.length) return;
-  e.target.value = ''; // reset input so same file can be re-selected
-  const readFile = f => new Promise(res => { const r=new FileReader(); r.onload=ev=>res(ev.target.result); r.readAsDataURL(f); });
-  // Show crop tool for first photo, rest added directly
+  e.target.value = '';
+
+  const readFile = f => new Promise(res => {
+    const r=new FileReader();
+    r.onload=ev=>res(ev.target.result);
+    r.readAsDataURL(f);
+  });
+
+  // Для постів використовуємо кропер 4:5
   readFile(files[0]).then(src => {
     showCropTool(src, cropped => {
       if (files.length > 1) {
+        // Якщо вибрано кілька фото — перше кропається, інші додаються як є (або можна по черзі)
         Promise.all(files.slice(1).map(readFile)).then(rest => {
           POST_IMGS = [...POST_IMGS, cropped, ...rest].slice(0,10);
           renderUploadGrid();
@@ -27,7 +35,7 @@ function onPostFile(e) {
         POST_IMGS = [...POST_IMGS, cropped].slice(0,10);
         renderUploadGrid();
       }
-    });
+    }, { ratio: 4/5 });
   });
 }
 
