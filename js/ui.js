@@ -1,19 +1,23 @@
-// js/ui.js — Modal system, toast, sheets, history, carousel, crop, long press
+// js/ui.js — Система модальних вікон, тости, шторки, історія, карусель, кропер
 
-// ── Scroll lock ───────────────────────────────────────────
+// ── Блокування скролу ───────────────────────────────────────────
 function lockScroll()   { document.body.classList.add('scroll-locked'); }
 function unlockScroll() { document.body.classList.remove('scroll-locked'); }
 
-// ── History API ───────────────────────────────────────────
+// ── History API (Кнопка "Назад") ───────────────────────────────
 let _histDepth = 0;
 function eraPush(id) { _histDepth++; history.pushState({era:id,depth:_histDepth},'',location.href.split('#')[0]+'#'+id); }
 function eraBack()  { if(_histDepth>0){ history.back(); } else { _closeTopModal(); } }
 
+/**
+ * Закриває верхнє активне вікно (викликається системною кнопкою "Назад")
+ */
 function _closeTopModal(fromPopState=false) {
   if (document.getElementById('lightbox')) { _closeLightboxInternal(fromPopState); return; }
   if (document.getElementById('pin-replace-dialog')) { document.getElementById('pin-replace-dialog').remove(); return; }
   const cropModal = document.getElementById('crop-modal');
   if (cropModal && !cropModal.classList.contains('hidden')) { cancelCrop(fromPopState); return; }
+
   const open = [...document.querySelectorAll('.overlay:not(.hidden)')];
   if (open.length) {
     const o = open[open.length-1];
@@ -26,7 +30,7 @@ window.addEventListener('popstate', e => {
   _closeTopModal(true);
 });
 
-// ── Sheet animation helpers ───────────────────────────────
+// ── Анімації шторок (Sheet animations) ─────────────────────────
 function _animateSheetOut(overlayEl, cb, fromPopState=false) {
   const sheet = overlayEl.querySelector('.sheet');
   if (sheet) {
@@ -48,15 +52,28 @@ function _animateSheetOut(overlayEl, cb, fromPopState=false) {
   }
 }
 
-// ── Open / close modals ───────────────────────────────────
+// ── Відкриття/Закриття модалок ───────────────────────────────
 function openModal(id) {
   const el = document.getElementById(id); if(!el) return;
   el.classList.remove('hidden');
   const sheet = el.querySelector('.sheet');
-  if (sheet) { sheet.style.transform='translateY(100%)'; sheet.style.transition='none'; requestAnimationFrame(()=>{ sheet.style.transition='transform .3s cubic-bezier(.22,1,.36,1)'; sheet.style.transform=''; }); }
-  lockScroll(); eraPush(id);
-  // Init drag-to-close
-  const pairs = { 'modal-create':['handle-create','sheet-create'], 'modal-cmt':['handle-cmt','sheet-cmt'], 'modal-user':['handle-user','sheet-user'] };
+  if (sheet) {
+    sheet.style.transform='translateY(100%)';
+    sheet.style.transition='none';
+    requestAnimationFrame(()=>{
+      sheet.style.transition='transform .3s cubic-bezier(.22,1,.36,1)';
+      sheet.style.transform='';
+    });
+  }
+  lockScroll();
+  eraPush(id);
+
+  // Ініціалізація жесту drag-to-close для шторок
+  const pairs = {
+    'modal-create':['handle-create','sheet-create'],
+    'modal-cmt':['handle-cmt','sheet-cmt'],
+    'modal-user':['handle-user','sheet-user']
+  };
   if (pairs[id]) _makeDraggable(...pairs[id], id);
 }
 
@@ -67,16 +84,24 @@ function closeModal(id) {
 
 function ovClose(e, id) { if(e.target===document.getElementById(id)) closeModal(id); }
 
-// ── Sheet drag-to-close ───────────────────────────────────
+// ── Жест закриття шторки (Drag-to-close) ──────────────────────
+/**
+ * Робить шторку перетягуваною для закриття свайпом вниз
+ */
 function _makeDraggable(handleId, sheetId, overlayId) {
   const handle = document.getElementById(handleId);
   const sheet  = document.getElementById(sheetId);
   if (!handle||!sheet) return;
-  let sy=0, dragging=false;
+
+  let sy=0, dragging=false, currentY=0;
   const hdr = sheet.querySelector('.sheet-hdr');
   const targets = [handle, hdr].filter(Boolean);
 
   const onStart = e => {
+    // Починаємо лише якщо скрол вгорі (для modal-cmt та інших з внутрішнім скролом)
+    const body = sheet.querySelector('.sheet-body');
+    if (body && body.scrollTop > 0 && e.target !== handle) return;
+
     sy = e.touches ? e.touches[0].clientY : e.clientY;
     dragging = true;
     sheet.style.transition = 'none';
@@ -87,6 +112,7 @@ function _makeDraggable(handleId, sheetId, overlayId) {
     const y = e.touches ? e.touches[0].clientY : e.clientY;
     const dy = y - sy;
     if(dy > 0) {
+      currentY = dy;
       sheet.style.transform = `translateY(${dy}px)`;
       if(e.cancelable) e.preventDefault();
     }
@@ -95,15 +121,14 @@ function _makeDraggable(handleId, sheetId, overlayId) {
   const onEnd = e => {
     if(!dragging) return;
     dragging = false;
-    const y = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
-    const dy = y - sy;
     sheet.style.transition = 'transform .28s cubic-bezier(.22,1,.36,1)';
-    if(dy > 100) {
+    if(currentY > 120) {
       _animateSheetOut(document.getElementById(overlayId));
     } else {
       sheet.style.transform = '';
       setTimeout(() => sheet.style.transition = '', 300);
     }
+    currentY = 0;
   };
 
   targets.forEach(el => {
@@ -117,14 +142,14 @@ function _makeDraggable(handleId, sheetId, overlayId) {
   window.addEventListener('mouseup', onEnd);
 }
 
-// ── Toast ─────────────────────────────────────────────────
+// ── Тости ──────────────────────────────────────────────────
 function showToast(msg, dur=2800) {
   const c=document.getElementById('toasts'), el=document.createElement('div');
   el.className='toast'; el.textContent=msg; c.appendChild(el);
   setTimeout(()=>{ el.classList.add('out'); setTimeout(()=>el.remove(),250); }, dur);
 }
 
-// ── Feed carousel ─────────────────────────────────────────
+// ── Карусель у стрічці ────────────────────────────────────────
 function initCarousel(pid, total, isLb=false) {
   if (total<=1) return;
   const state = {idx:0, total, isLb};
@@ -155,7 +180,7 @@ function initCarousel(pid, total, isLb=false) {
       const st = isLb ? lbCarState : carousels.get(pid);
       let tx = -st.idx * wrap.clientWidth + dx;
 
-      // Rubber-band effect
+      // Ефект пружини (rubber-band)
       if((st.idx === 0 && dx > 0) || (st.idx === st.total-1 && dx < 0)) {
         tx = -st.idx * wrap.clientWidth + dx * 0.3;
       }
@@ -196,6 +221,7 @@ function updateCarouselUI(pid, idx, isLb=false) {
   const track = document.getElementById(trackId);
   if(track) track.style.transform = `translateX(-${idx*100}%)`;
 
+  // Оновлюємо крапки-індикатори
   document.querySelectorAll(`#${dotId} .c-dot`).forEach((d,i) => {
     d.classList.toggle('on', i === idx);
     d.style.width = i === idx ? '14px' : '6px';
@@ -206,7 +232,7 @@ function updateCarouselUI(pid, idx, isLb=false) {
   if(ctr && st) ctr.textContent = `${idx+1}/${st.total}`;
 }
 
-// ── Long press (context menu) ─────────────────────────────
+// ── Довге натискання (Context Menu) ───────────────────────────
 let _lpTimer=null, _lpMoved=false;
 function _lpStart(e,pid) {
   _lpMoved=false;
@@ -215,7 +241,14 @@ function _lpStart(e,pid) {
   _lpTimer=setTimeout(()=>{
     if(_lpMoved)return;
     const card=document.getElementById('post-'+pid);
-    if(card){ const r=document.createElement('div'); r.className='lp-ripple'; r.style.left=(x-card.getBoundingClientRect().left)+'px'; r.style.top=(y-card.getBoundingClientRect().top)+'px'; card.appendChild(r); setTimeout(()=>r.remove(),600); }
+    if(card){
+      const r=document.createElement('div');
+      r.className='lp-ripple';
+      r.style.left=(x-card.getBoundingClientRect().left)+'px';
+      r.style.top=(y-card.getBoundingClientRect().top)+'px';
+      card.appendChild(r);
+      setTimeout(()=>r.remove(),600);
+    }
     showPostMenu(pid,x,y);
   },520);
 }
@@ -244,6 +277,7 @@ function showPostMenu(pid,x,y) {
       ];
   menu.innerHTML=items.map(it=>it.sep?`<div class="ctx-sep"></div>`:
     `<button class="ctx-item${it.d?' danger':''}" onclick="${it.fn};document.getElementById('ctx-m')?.remove()"><span>${it.ico}</span><span>${it.lbl}</span></button>`).join('');
+
   const mH=items.filter(i=>!i.sep).length*42+10;
   let top=y+8, left=x-90;
   if(top+mH>window.innerHeight-16) top=y-mH-8;
@@ -252,22 +286,30 @@ function showPostMenu(pid,x,y) {
   document.body.appendChild(menu);
 }
 
-// ── Crop tool ─────────────────────────────────────────────
+// ── Інструмент обрізки (Crop tool) ───────────────────────────
 let _cropCallback=null, _cropX=0, _cropY=0, _cropScale=1, _cropRotate=0;
 let _cropDragSX=0, _cropDragSY=0, _cropDragOX=0, _cropDragOY=0, _cropDragging=false;
 let _cropPinchDist=0, _cropOptions={};
 
+/**
+ * Відкриває редактор для обрізки фото
+ */
 function showCropTool(src, callback, opts={}) {
   _cropCallback=callback; _cropX=0; _cropY=0; _cropScale=1; _cropRotate=0;
+  // Налаштування пропорцій (4:5 для постів, 1:1 для аватарок, 16:9 для банерів)
   _cropOptions={ ratio:4/5, round:false, ...opts };
+
   const modal=document.getElementById('crop-modal');
   modal.classList.remove('hidden');
   const img=document.getElementById('crop-img');
+
   const zS=document.getElementById('crop-zoom'), rS=document.getElementById('crop-rotate');
   if(zS){ zS.value=1; } if(rS){ rS.value=0; }
+
   img.onload=()=>{ _fitCrop(img); _drawCropMask(); };
   img.src=src;
   _initCropEvents();
+  eraPush('crop');
 }
 
 function _fitCrop(img) {
@@ -276,7 +318,8 @@ function _fitCrop(img) {
   _cropScale=Math.max(fw/img.naturalWidth, fh/img.naturalHeight);
   _cropX=0; _cropY=0;
   img.style.width=img.naturalWidth+'px'; img.style.height=img.naturalHeight+'px';
-  const zS=document.getElementById('crop-zoom'); if(zS){ zS.value=_cropScale; zS.min=_cropScale*.5; zS.max=_cropScale*5; }
+  const zS=document.getElementById('crop-zoom');
+  if(zS){ zS.value=_cropScale; zS.min=_cropScale*.5; zS.max=_cropScale*5; zS.step=0.001; }
   _applyTransform(img);
 }
 
@@ -311,52 +354,77 @@ function _drawCropMask() {
 
 function _initCropEvents() {
   const s=document.getElementById('crop-stage'), img=document.getElementById('crop-img');
+
+  // Миша
   s.onmousedown = e=>{ _cropDragging=true; _cropDragSX=e.clientX; _cropDragSY=e.clientY; _cropDragOX=_cropX; _cropDragOY=_cropY; s.classList.add('dragging'); };
   window.onmousemove = e=>{ if(!_cropDragging)return; _cropX=_cropDragOX+(e.clientX-_cropDragSX); _cropY=_cropDragOY+(e.clientY-_cropDragSY); _applyTransform(); };
   window.onmouseup = ()=>{ _cropDragging=false; s.classList.remove('dragging'); };
 
-  s.onwheel = e=>{ e.preventDefault(); _cropScale=Math.max(_cropScale*.2,Math.min(_cropScale*10,_cropScale-(e.deltaY>0?.05*_cropScale:-.05*_cropScale))); const zS=document.getElementById('crop-zoom'); if(zS)zS.value=_cropScale; _applyTransform(); };
+  // Zoom коліщатком
+  s.onwheel = e=>{
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.95 : 1.05;
+    _cropScale = Math.max(_cropScale*0.2, Math.min(_cropScale*10, _cropScale * delta));
+    const zS=document.getElementById('crop-zoom'); if(zS)zS.value=_cropScale;
+    _applyTransform();
+  };
 
+  // Тач-жести (Pan & Pinch Zoom)
   s.ontouchstart = e=>{
     if(e.touches.length===1){ _cropDragging=true; _cropDragSX=e.touches[0].clientX; _cropDragSY=e.touches[0].clientY; _cropDragOX=_cropX; _cropDragOY=_cropY; }
     if(e.touches.length===2){ _cropPinchDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); }
   };
   s.ontouchmove = e=>{
     if(e.touches.length===1&&_cropDragging){ _cropX=_cropDragOX+(e.touches[0].clientX-_cropDragSX); _cropY=_cropDragOY+(e.touches[0].clientY-_cropDragSY); _applyTransform(); }
-    if(e.touches.length===2){ e.preventDefault(); const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); _cropScale=Math.max(_cropScale*.2,Math.min(_cropScale*10,_cropScale*(d/_cropPinchDist))); _cropPinchDist=d; const zS=document.getElementById('crop-zoom'); if(zS)zS.value=_cropScale; _applyTransform(); }
+    if(e.touches.length===2){
+      e.preventDefault();
+      const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+      _cropScale=Math.max(_cropScale*0.2, Math.min(_cropScale*10, _cropScale*(d/_cropPinchDist)));
+      _cropPinchDist=d;
+      const zS=document.getElementById('crop-zoom'); if(zS)zS.value=_cropScale;
+      _applyTransform();
+    }
   };
   s.ontouchend = ()=>{ _cropDragging=false; };
 
+  // Слайдери Zoom та Rotate
   const zS=document.getElementById('crop-zoom'), rS=document.getElementById('crop-rotate');
   if(zS) zS.oninput = e=>{ _cropScale=parseFloat(e.target.value); _applyTransform(); };
   if(rS) rS.oninput = e=>{ _cropRotate=parseFloat(e.target.value); _applyTransform(); };
 }
 
+/**
+ * Обрізає та зберігає результат
+ */
 function applyCrop() {
   const img=document.getElementById('crop-img'), stage=document.getElementById('crop-stage');
   const sw=stage.clientWidth, sh=stage.clientHeight;
   const fw=Math.round(sw*.88), fh=Math.round(fw/_cropOptions.ratio);
   const fx=(sw-fw)/2, fy=(sh-fh)/2;
+
   const canvas=document.createElement('canvas');
-  const OUT=800; canvas.width=OUT; canvas.height=Math.round(OUT/_cropOptions.ratio);
+  const OUT=1080; // Професійна якість
+  canvas.width=OUT; canvas.height=Math.round(OUT/_cropOptions.ratio);
   const ctx=canvas.getContext('2d');
 
   ctx.translate(canvas.width/2, canvas.height/2);
   ctx.rotate(_cropRotate * Math.PI / 180);
   ctx.scale(_cropScale, _cropScale);
 
-  // Calculate relative position
+  // Розрахунок позиції відносно центру рамки
   const drawW = img.naturalWidth;
   const drawH = img.naturalHeight;
+
   const dx = (_cropX - (sw/2 - (fx + fw/2))) / _cropScale;
   const dy = (_cropY - (sh/2 - (fy + fh/2))) / _cropScale;
 
   ctx.drawImage(img, dx - drawW/2, dy - drawH/2, drawW, drawH);
 
-  const result=canvas.toDataURL('image/jpeg',.9);
+  const result=canvas.toDataURL('image/jpeg', 0.9);
   document.getElementById('crop-modal').classList.add('hidden');
   if(_cropCallback) _cropCallback(result);
   _cropCallback=null;
+  if(_histDepth > 0) { _histDepth--; history.back(); }
 }
 
 function cancelCrop(fromPopState=false) {

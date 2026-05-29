@@ -1,6 +1,9 @@
 // js/main.js — App init, navigation, explore, right panel, mood
 
 // ── Views ─────────────────────────────────────────────────
+/**
+ * Змінює поточний екран додатку
+ */
 function setView(v) {
   APP.view = v;
   if (v !== 'profile') APP.profileUid = null;
@@ -16,7 +19,10 @@ function setView(v) {
   else if (v==='settings') renderSettings();
 }
 
-// ── Explore ───────────────────────────────────────────────
+// ── Пошук (Explore) ───────────────────────────────────────
+/**
+ * Рендерить екран пошуку з результатами
+ */
 function renderExplore(q) {
   const sq = q.toLowerCase();
   const stored = JSON.parse(localStorage.getItem('era_users')||'[]');
@@ -44,7 +50,8 @@ ${filtered.length===0
       else if (isF) statusTxt = t('profile.youFollow');
       else if (isReq) statusTxt = t('profile.requested');
 
-      return `<div class="rp-user" style="background: var(--s1); border: 1px solid var(--b1); padding: 12px" onclick="openUserCard('${u.id}')">
+      // Рендеримо картку користувача в пошуку з Vibe Code та статусом
+      return `<div class="rp-user" style="background: var(--s1); border: 1px solid var(--b1); padding: 12px; border-radius: 12px" onclick="openUserCard('${u.id}')">
         <div style="width:44px;height:44px;flex-shrink:0;position:relative">
           ${avatarHTML(u,44,{friend:true})}
           ${isUserPrivate(u.id)?`<div style="position:absolute;bottom:-2px;right:-2px;font-size:10px;background:var(--s2);border-radius:50%;padding:2px">🔒</div>`:''}
@@ -52,9 +59,9 @@ ${filtered.length===0
         <div style="flex:1;min-width:0">
           <div style="font-size:14px;font-weight:600;color:var(--t1)">@${esc(u.username)}</div>
           <div style="font-size:12px;color:var(--t2)">${esc(u.displayName||'')}</div>
-          ${statusTxt ? `<div style="font-size:10px; color:${frnd ? myCols[0] : 'var(--t3)'}; margin-top:2px">${statusTxt}</div>` : ''}
+          ${statusTxt ? `<div style="font-size:10px; color:${frnd ? myCols[0] : 'var(--t3)'}; margin-top:2px; font-weight:600">${statusTxt}</div>` : ''}
         </div>
-        <div style="width:60px;height:30px;border-radius:4px;overflow:hidden;border:1px solid var(--b1)">
+        <div style="width:60px;height:30px;border-radius:6px;overflow:hidden;border:1px solid var(--b1); flex-shrink:0">
           ${makeVibeCode(u.baseColor, u.id, 60, 30)}
         </div>
       </div>`;
@@ -64,7 +71,10 @@ ${filtered.length===0
   if (inp && q) { const l=q.length; inp.setSelectionRange(l,l); }
 }
 
-// ── Right panel ───────────────────────────────────────────
+// ── Права панель (Right panel) ───────────────────────────
+/**
+ * Рендерить праву панель з рекомендаціями
+ */
 function renderRightPanel() {
   const sugg = [...SU,...JSON.parse(localStorage.getItem('era_users')||'[]')]
     .filter(u=>u&&u.id!==APP.user?.id&&getFollowStatus(u.id)!=='following').slice(0,5);
@@ -102,7 +112,7 @@ function _rpFollow(uid, btn) {
   setTimeout(renderRightPanel, 300);
 }
 
-// ── Mood screen ───────────────────────────────────────────
+// ── Настрій (Mood) ───────────────────────────────────────────
 let selMood = null;
 
 function renderMoodGrid() {
@@ -127,7 +137,7 @@ function confirmMood() {
   localStorage.setItem('era_mood_'+todayKey(), selMood);
   saveMoodHist(selMood);
   document.getElementById('mood-screen').classList.add('hidden');
-  // If app already booted (mood change from profile), update and re-render
+
   if (!document.getElementById('app').classList.contains('hidden')) {
     showToast(t('mood.saved',{emoji:MOODS.find(m=>m.id===selMood)?.emoji||''}));
     if (APP.view==='profile') renderProfile(APP.user.id);
@@ -142,12 +152,12 @@ function skipMood() {
   bootApp();
 }
 
-// ── Init ──────────────────────────────────────────────────
+// ── Ініціалізація ───────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
-  // Push base history state
+  // Базовий стан історії
   history.replaceState({era:'base',depth:0},'',location.href.split('#')[0]);
 
-  // Restore session
+  // Відновлення сесії
   const saved = localStorage.getItem('era_session');
   if (saved) {
     try {
@@ -160,13 +170,13 @@ window.addEventListener('DOMContentLoaded', () => {
     } catch(e) { localStorage.removeItem('era_session'); }
   }
 
-  // Auth enter keys
+  // Обробка Enter в формах авторизації
   updateVibePrev();
   document.getElementById('l-pass')?.addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
   document.getElementById('l-user')?.addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
   document.getElementById('r-pass')?.addEventListener('keydown', e=>{ if(e.key==='Enter') doRegister(); });
 
-  // Keyboard shortcuts
+  // Гарячі клавіші
   document.addEventListener('keydown', e => {
     if (e.key==='Escape') eraBack();
     if (document.getElementById('lightbox')) {
@@ -175,11 +185,11 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Close context menu on outside interaction
+  // Закриття контекстного меню при кліку зовні
   document.addEventListener('click',      e=>{ const m=document.getElementById('ctx-m'); if(m&&!m.contains(e.target))m.remove(); });
   document.addEventListener('touchstart', e=>{ const m=document.getElementById('ctx-m'); if(m&&!m.contains(e.target))m.remove(); },{passive:true});
 
-  // Drag-drop upload
+  // Drag-drop завантаження
   const zone = document.getElementById('upload-zone');
   if (zone) {
     zone.addEventListener('dragover',  e=>{ e.preventDefault(); zone.style.borderColor='#00c6ff'; });
@@ -190,7 +200,7 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Toast offset for mobile
+  // Корекція тостів для мобільних пристроїв
   const isM = ()=>window.innerWidth<=768;
   if (isM()) document.getElementById('toasts').style.bottom='80px';
   window.addEventListener('resize', ()=>document.getElementById('toasts').style.bottom=isM()?'80px':'24px');
