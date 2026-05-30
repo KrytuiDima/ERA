@@ -26,7 +26,7 @@ async function onPostFile(e) {
 
   // Для першого фото завжди відкриваємо кропер 4:5
   const firstSrc = await readFile(files[0]);
-
+  
   showCropTool(firstSrc, async (cropped) => {
     if (files.length > 1) {
       // Якщо вибрано кілька фото — інші додаються автоматично (можна розширити до кропу всіх)
@@ -96,7 +96,7 @@ async function submitPost() {
 
   // Додаємо в локальний масив та імітуємо збереження в БД
   POSTS.unshift(np);
-
+  
   const saved = JSON.parse(localStorage.getItem('era_posts') || '[]');
   saved.unshift(np);
   localStorage.setItem('era_posts', JSON.stringify(saved.slice(0, 30)));
@@ -104,7 +104,7 @@ async function submitPost() {
   // Закриваємо модалку та оновлюємо стрічку
   closeModal('modal-create');
   showToast(t('post.published'));
-
+  
   setTimeout(() => {
     if (APP.view === 'feed') {
       setFeed(APP.feed);

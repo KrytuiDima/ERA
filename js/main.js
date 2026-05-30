@@ -39,7 +39,7 @@ ${filtered.length === 0
       const status = getFollowStatus(u.id);
       const isF = status === 'following';
       const isReq = status === 'requested';
-
+      
       let statusTxt = '';
       if (frnd) statusTxt = t('profile.friends');
       else if (isF) statusTxt = t('profile.youFollow');
@@ -64,7 +64,7 @@ ${filtered.length === 0
       </div>`;
     }).join('')}
   </div>`}`;
-
+  
   const inp = document.getElementById('explore-inp');
   if (inp && q) { const l = q.length; inp.setSelectionRange(l, l); }
 }

@@ -27,7 +27,7 @@ async function followUser(uid) {
     // Для публічних — миттєва підписка
     FOLLOWS.set(uid, 'following');
     await saveFollowsToStorage();
-
+    
     // Якщо підписка взаємна — вони тепер друзі
     if (FOLLOWERS.get(uid) === true) {
       showToast(t('social.nowFriends', { user: user.username }));
@@ -45,7 +45,7 @@ async function unfollowUser(uid) {
   FOLLOWS.delete(uid);
   await saveFollowsToStorage();
   showToast(t('social.unfollowed', { user: user?.username || uid }));
-
+  
   if (APP.view === 'explore') renderExplore(document.getElementById('explore-inp')?.value || '');
   renderRightPanel();
 }

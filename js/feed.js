@@ -254,7 +254,7 @@ function renderCmt(c) {
       <span class="cmt-utime">${fmtTime(c.ts)}</span>
     </div>
     ${c.text ? `<div class="cmt-text">${esc(c.text)}</div>` : ''}
-
+    
     <!-- Фото в коментарі: маленьке квадратне прев'ю -->
     ${c.photo ? `<div class="cmt-ph-wrap" onclick="openPhotoLightbox('${c.photo}')">
       <img class="cmt-photo-img" src="${c.photo}" alt="">
@@ -287,7 +287,7 @@ function rmCmtPh() { CMT_PHOTO=null; document.getElementById('cmt-ph-prev').clas
 async function sendCmt() {
   const txt = document.getElementById('cmt-input').value.trim();
   if (!txt && !CMT_PHOTO) return;
-
+  
   const p = POSTS.find(x => x.id === OPEN_POST);
   if (!p) return;
 
@@ -300,7 +300,7 @@ async function sendCmt() {
   };
 
   p.comments.push(nc);
-
+  
   // Оновлюємо UI миттєво
   const list = document.getElementById('cmt-list');
   if (list) {
@@ -313,7 +313,7 @@ async function sendCmt() {
   CMT_PHOTO = null;
   document.getElementById('cmt-ph-prev').classList.add('hidden');
   document.getElementById('cmt-file').value = '';
-
+  
   const cc = document.getElementById('cc-cmt-' + p.id);
   if (cc) cc.textContent = p.comments.length;
 }

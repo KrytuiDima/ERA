@@ -111,7 +111,7 @@ function _makeDraggable(handleId, sheetId, overlayId) {
   const handle = document.getElementById(handleId);
   const sheet = document.getElementById(sheetId);
   if (!handle || !sheet) return;
-
+  
   let sy = 0, dragging = false, startTime = 0;
   const hdr = sheet.querySelector('.sheet-hdr');
   const targets = [handle, hdr].filter(Boolean);
@@ -143,7 +143,7 @@ function _makeDraggable(handleId, sheetId, overlayId) {
     const vel = dy / dt; // Швидкість свайпу
 
     sheet.style.transition = 'transform .3s cubic-bezier(.22,1,.36,1)';
-
+    
     // Закриваємо, якщо потягнули більше ніж на 120px або швидкий свайп
     if (dy > 120 || (vel > 0.6 && dy > 40)) {
       _animateSheetOut(document.getElementById(overlayId));

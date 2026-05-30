@@ -11,7 +11,7 @@ function renderProfile(uid) {
   const cols = vibeColors(vibe, hashStr(u.id));
   const myVibe = currentVibeColor(APP.user || {baseColor:'#00c6ff'});
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
-
+  
   // Імітація кількості підписників
   const followers = own ? Math.floor(srand(hashStr(uid+55))*800+10) : Math.floor(srand(hashStr(uid+33))*1200+50);
   const following = own ? [...FOLLOWS.values()].filter(s=>s==='following').length : Math.floor(srand(hashStr(uid+22))*400+5);
@@ -65,26 +65,26 @@ function renderProfile(uid) {
   </div>
   <div class="profile-dname">${esc(u.displayName||u.username)}${frnd?` <span style="font-size:11px;color:${myCols[0]};font-weight:400">· ${t('profile.friends')}</span>`:''}</div>
   <div class="profile-handle">@${esc(u.username)}</div>
-
+  
   <!-- Біо до 150 символів -->
   ${u.bio?`<div class="profile-bio">${esc(u.bio).slice(0,150)}</div>`:''}
-
+  
   <!-- Клікабельне посилання URL -->
   ${u.website?`<div class="profile-link">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
     <a href="${u.website.startsWith('http')?u.website:'https://'+u.website}" target="_blank" rel="noopener noreferrer">${u.website.replace(/^https?:\/\//,'')}</a>
   </div>`:''}
-
+  
   <div class="profile-stats">
     <div><div class="ps-n">${followers}</div><div class="ps-l">${t('profile.followers')}</div></div>
     <div><div class="ps-n">${following}</div><div class="ps-l">${t('profile.following')}</div></div>
   </div>
-
+  
   ${own?`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--b1);display:flex;align-items:center;gap:8px">
     <div style="font-size:13px;color:var(--t2)">${APP.mood?`${MOODS.find(m=>m.id===APP.mood)?.emoji||''} ${t('mood.moods.'+APP.mood)}`:`${t('profile.moodNotSet')}`}</div>
     <button onclick="changeMood()" style="margin-left:auto;padding:4px 12px;border-radius:20px;border:1px solid var(--b2);background:var(--s2);font-size:11px;font-weight:600;color:var(--t2);cursor:pointer;transition:all .14s">${APP.mood?t('profile.changeMood'):t('profile.chooseMood')}</button>
   </div>`:''}
-
+  
   <div class="vibe-sig">
     <span style="font-family:var(--mono);font-size:9px;color:var(--t3);letter-spacing:.08em">${t('profile.vibe')}</span>
     <div class="vibe-sig-bar">${makeVibeCode(vibe,u.id,200,18)}</div>
@@ -125,11 +125,11 @@ async function changeAva(e) {
   r.onload=ev=>{
     // Викликаємо кропер з пропорціями 1:1
     showCropTool(ev.target.result, async res => {
-      APP.user.avatar = res;
+      APP.user.avatar = res; 
       await saveUserData();
       document.getElementById('sb-ava').innerHTML = avatarHTML(APP.user,34);
       document.getElementById('bn-ava').innerHTML = avatarHTML(APP.user,24);
-      renderProfile(APP.user.id);
+      renderProfile(APP.user.id); 
       showToast(t('profile.photoUpdated'));
     }, { ratio: 1, round: true });
   };
@@ -143,9 +143,9 @@ async function changeBanner(e) {
   r.onload=ev=>{
     // Викликаємо кропер з пропорціями 16:9
     showCropTool(ev.target.result, async res => {
-      APP.user.banner = res;
+      APP.user.banner = res; 
       await saveUserData();
-      renderProfile(APP.user.id);
+      renderProfile(APP.user.id); 
       showToast(t('profile.photoUpdated'));
     }, { ratio: 16/9 });
   };

@@ -151,7 +151,7 @@ function buildLightbox(dir=0) {
     const dy = y - vSY;
 
     wrapEl.style.transition = 'transform .3s cubic-bezier(.22,1,.36,1), opacity .3s';
-
+    
     // Закриваємо при достатньому зміщенні (вгору або вниз)
     if (isVertical && Math.abs(dy) > 130) {
       wrapEl.style.transform = `translateY(${dy > 0 ? '100vh' : '-100vh'}) scale(0.5)`;

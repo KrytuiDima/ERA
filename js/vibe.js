@@ -43,7 +43,7 @@ function makeVibeCode(baseHex, uid, w = 100, h = 100, opts = {}) {
   const N = 9 + Math.floor(srand(seed) * 7);
   const ws = Array.from({ length: N }, (_, i) => 0.4 + srand(seed + i * 7 + 1) * 2.2);
   const tw = ws.reduce((a, b) => a + b, 0);
-
+  
   let bars = '', x = 0;
   for (let i = 0; i < N; i++) {
     const bw = (ws[i] / tw) * 100;
@@ -52,7 +52,7 @@ function makeVibeCode(baseHex, uid, w = 100, h = 100, opts = {}) {
     const ci = Math.floor(srand(seed + i * 5 + 4) * 3);
     const ug = srand(seed + i * 11 + 5) > 0.44;
     const op = (0.62 + srand(seed + i * 13 + 6) * 0.38).toFixed(2);
-
+    
     bars += `<rect x="${x.toFixed(2)}" y="${yo.toFixed(2)}" width="${bw.toFixed(2)}" height="${bh.toFixed(2)}" fill="${ug ? `url(#${gid})` : cols[ci]}" opacity="${op}"/>`;
     x += bw;
   }
@@ -138,7 +138,7 @@ function avatarHTML(user, size = 38, opts = {}) {
   if (user.avatar) {
     return `<img src="${user.avatar}" style="width:${size}px; height:${size}px; border-radius:50%; object-fit:cover; display:block; border:${border}; ${glow}" class="era-ava${cls}">`;
   }
-
+  
   const init = (user.displayName || user.username || '?').slice(0, 2).toUpperCase();
   return `<div class="era-ava${cls}" style="width:${size}px; height:${size}px; border-radius:50%; background:linear-gradient(135deg, ${cols[0]}, ${cols[1]}); display:flex; align-items:center; justify-content:center; font-size:${Math.floor(size * 0.36)}px; font-weight:700; color:#fff; flex-shrink:0; border:${border}; ${glow}">${init}</div>`;
 }
