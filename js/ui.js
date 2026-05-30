@@ -5,56 +5,84 @@ function lockScroll()   { document.body.classList.add('scroll-locked'); }
 function unlockScroll() { document.body.classList.remove('scroll-locked'); }
 
 // ── History API (Керування історією та кнопкою Назад) ─────
+// Модальні вікна інтегровані з історією браузера для коректної роботи кнопки "Назад"
 let _histDepth = 0;
-// Додаємо стан в історію при відкритті модалок
+
+// Додаємо новий стан в історію при відкритті будь-якого вікна
 function eraPush(id) {
   _histDepth++;
-  history.pushState({era:id,depth:_histDepth},'',location.href.split('#')[0]+'#'+id);
+  history.pushState({ era: id, depth: _histDepth }, '', location.href.split('#')[0] + '#' + id);
 }
 
-// Програмне повернення назад
-function eraBack()  {
-  if(_histDepth>0){ history.back(); }
-  else { _closeTopModal(); }
+// Програмна імітація натискання кнопки "Назад"
+function eraBack() {
+  if (_histDepth > 0) {
+    history.back();
+  } else {
+    _closeTopModal();
+  }
 }
 
-// Закриття верхнього активного вікна
-function _closeTopModal(fromPopState=false) {
-  if (document.getElementById('lightbox')) { _closeLightboxInternal(fromPopState); return; }
-  if (document.getElementById('pin-replace-dialog')) { document.getElementById('pin-replace-dialog').remove(); return; }
+// Закриття самого верхнього активного вікна
+function _closeTopModal(fromPopState = false) {
+  // 1. Лайтбокс (Media View)
+  if (document.getElementById('lightbox')) {
+    _closeLightboxInternal(fromPopState);
+    return;
+  }
+  // 2. Діалог заміни пінів
+  if (document.getElementById('pin-replace-dialog')) {
+    document.getElementById('pin-replace-dialog').remove();
+    if (!fromPopState && _histDepth > 0) { _histDepth--; history.back(); }
+    return;
+  }
+  // 3. Фото-редактор (Кропер)
   const cropModal = document.getElementById('crop-modal');
-  if (cropModal && !cropModal.classList.contains('hidden')) { cancelCrop(fromPopState); return; }
+  if (cropModal && !cropModal.classList.contains('hidden')) {
+    cancelCrop(fromPopState);
+    return;
+  }
+  // 4. Стандартні Overlay (Створення поста, Коментарі, Профіль)
   const open = [...document.querySelectorAll('.overlay:not(.hidden)')];
   if (open.length) {
-    const o = open[open.length-1];
+    const o = open[open.length - 1];
     _animateSheetOut(o, null, fromPopState);
   }
 }
 
+// Обробка системної кнопки "Назад" (Android) або свайпу (iOS)
 window.addEventListener('popstate', e => {
   _histDepth = e.state?.depth || 0;
   _closeTopModal(true);
 });
 
 // ── Sheet animation helpers ───────────────────────────────
-function _animateSheetOut(overlayEl, cb, fromPopState=false) {
+// Плавна анімація виїзду шторки вниз
+function _animateSheetOut(overlayEl, cb, fromPopState = false) {
   const sheet = overlayEl.querySelector('.sheet');
   if (sheet) {
-    sheet.style.transition = 'transform .26s cubic-bezier(.22,1,.36,1)';
-    sheet.style.transform  = 'translateY(110%)';
+    sheet.style.transition = 'transform .28s cubic-bezier(.22,1,.36,1)';
+    sheet.style.transform = 'translateY(105%)';
     setTimeout(() => {
       overlayEl.classList.add('hidden');
-      sheet.style.transform='';
-      sheet.style.transition='';
+      sheet.style.transform = '';
+      sheet.style.transition = '';
       unlockScroll();
-      if(cb)cb();
-      if(!fromPopState && _histDepth > 0) { _histDepth--; history.back(); }
-    }, 250);
+      if (cb) cb();
+      // Синхронізуємо історію, якщо закриття ініційовано кодом, а не кнопкою "Назад"
+      if (!fromPopState && _histDepth > 0) {
+        _histDepth--;
+        history.back();
+      }
+    }, 270);
   } else {
     overlayEl.classList.add('hidden');
     unlockScroll();
-    if(cb)cb();
-    if(!fromPopState && _histDepth > 0) { _histDepth--; history.back(); }
+    if (cb) cb();
+    if (!fromPopState && _histDepth > 0) {
+      _histDepth--;
+      history.back();
+    }
   }
 }
 
@@ -78,50 +106,58 @@ function closeModal(id) {
 function ovClose(e, id) { if(e.target===document.getElementById(id)) closeModal(id); }
 
 // ── Sheet drag-to-close (Фізика шторки) ───────────────────
+// Дозволяє закривати модальні вікна свайпом вниз за верхню частину (Handle bar)
 function _makeDraggable(handleId, sheetId, overlayId) {
   const handle = document.getElementById(handleId);
-  const sheet  = document.getElementById(sheetId);
-  if (!handle||!sheet) return;
-  let sy=0, dragging=false;
+  const sheet = document.getElementById(sheetId);
+  if (!handle || !sheet) return;
+
+  let sy = 0, dragging = false, startTime = 0;
   const hdr = sheet.querySelector('.sheet-hdr');
   const targets = [handle, hdr].filter(Boolean);
 
   const onStart = e => {
     sy = e.touches ? e.touches[0].clientY : e.clientY;
     dragging = true;
+    startTime = Date.now();
     sheet.style.transition = 'none';
   };
 
   const onMove = e => {
-    if(!dragging) return;
+    if (!dragging) return;
     const y = e.touches ? e.touches[0].clientY : e.clientY;
     const dy = y - sy;
-    if(dy > 0) {
+    if (dy > 0) {
+      // Фізика опору: чим далі тягнемо, тим повільніше рухається (опціонально)
       sheet.style.transform = `translateY(${dy}px)`;
-      if(e.cancelable) e.preventDefault();
+      if (e.cancelable) e.preventDefault();
     }
   };
 
   const onEnd = e => {
-    if(!dragging) return;
+    if (!dragging) return;
     dragging = false;
     const y = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
     const dy = y - sy;
-    sheet.style.transition = 'transform .28s cubic-bezier(.22,1,.36,1)';
-    if(dy > 100) {
+    const dt = Date.now() - startTime;
+    const vel = dy / dt; // Швидкість свайпу
+
+    sheet.style.transition = 'transform .3s cubic-bezier(.22,1,.36,1)';
+
+    // Закриваємо, якщо потягнули більше ніж на 120px або швидкий свайп
+    if (dy > 120 || (vel > 0.6 && dy > 40)) {
       _animateSheetOut(document.getElementById(overlayId));
     } else {
       sheet.style.transform = '';
-      setTimeout(() => sheet.style.transition = '', 300);
     }
   };
 
   targets.forEach(el => {
-    el.addEventListener('touchstart', onStart, {passive:true});
+    el.addEventListener('touchstart', onStart, { passive: true });
     el.addEventListener('mousedown', onStart);
   });
 
-  window.addEventListener('touchmove', onMove, {passive:false});
+  window.addEventListener('touchmove', onMove, { passive: false });
   window.addEventListener('mousemove', onMove);
   window.addEventListener('touchend', onEnd);
   window.addEventListener('mouseup', onEnd);
@@ -263,25 +299,32 @@ function showPostMenu(pid,x,y) {
 }
 
 // ── Crop tool (Медіа-редактор) ─────────────────────────────
-let _cropCallback=null, _cropX=0, _cropY=0, _cropScale=1, _cropRotate=0;
-let _cropDragSX=0, _cropDragSY=0, _cropDragOX=0, _cropDragOY=0, _cropDragging=false;
-let _cropPinchDist=0, _cropOptions={};
+// Професійний фронтенд-кропер для постів, аватарок та банерів
+let _cropCallback = null, _cropX = 0, _cropY = 0, _cropScale = 1, _cropRotate = 0;
+let _cropDragSX = 0, _cropDragSY = 0, _cropDragOX = 0, _cropDragOY = 0, _cropDragging = false;
+let _cropPinchDist = 0, _cropOptions = {};
 
-// Відкриття редактора фото
-function showCropTool(src, callback, opts={}) {
-  _cropCallback=callback; _cropX=0; _cropY=0; _cropScale=1; _cropRotate=0;
-  // ratio: 4/5 для постів, 1/1 для аватара, 16/9 для банера
-  _cropOptions={ ratio:4/5, round:false, ...opts };
+// Відкриття редактора фото (пропорції 4:5, 1:1 або 16:9)
+function showCropTool(src, callback, opts = {}) {
+  _cropCallback = callback;
+  _cropX = 0; _cropY = 0; _cropScale = 1; _cropRotate = 0;
+  _cropOptions = { ratio: 4 / 5, round: false, ...opts };
 
-  const modal=document.getElementById('crop-modal');
+  const modal = document.getElementById('crop-modal');
   modal.classList.remove('hidden');
+  lockScroll();
+  eraPush('crop');
 
-  const img=document.getElementById('crop-img');
-  const zS=document.getElementById('crop-zoom'), rS=document.getElementById('crop-rotate');
-  if(zS){ zS.value=1; } if(rS){ rS.value=0; }
+  const img = document.getElementById('crop-img');
+  const zS = document.getElementById('crop-zoom'), rS = document.getElementById('crop-rotate');
+  if (zS) zS.value = 1;
+  if (rS) rS.value = 0;
 
-  img.onload=()=>{ _fitCrop(img); _drawCropMask(); };
-  img.src=src;
+  img.onload = () => {
+    _fitCrop(img);
+    _drawCropMask();
+  };
+  img.src = src;
   _initCropEvents();
 }
 

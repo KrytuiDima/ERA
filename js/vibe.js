@@ -35,28 +35,49 @@ function vibeColors(baseHex, seed) {
 }
 
 // Створення SVG штрих-коду (Vibe Code)
-function makeVibeCode(baseHex, uid, w=100, h=100, opts={}) {
-  const seed = hashStr(String(uid)), cols = vibeColors(baseHex, seed), gid = 'vc'+seed;
-  const N = 9+Math.floor(srand(seed)*7);
-  const ws = Array.from({length:N}, (_,i) => .4+srand(seed+i*7+1)*2.2);
-  const tw = ws.reduce((a,b)=>a+b,0);
-  let bars='', x=0;
-  for (let i=0;i<N;i++) {
-    const bw=(ws[i]/tw)*100, yo=srand(seed+i*3+2)*18, bh=100-yo-srand(seed+i*4+3)*14;
-    const ci=Math.floor(srand(seed+i*5+4)*3), ug=srand(seed+i*11+5)>.44;
-    const op=(0.62+srand(seed+i*13+6)*.38).toFixed(2);
-    bars+=`<rect x="${x.toFixed(2)}" y="${yo.toFixed(2)}" width="${bw.toFixed(2)}" height="${bh.toFixed(2)}" fill="${ug?`url(#${gid})`:cols[ci]}" opacity="${op}"/>`;
-    x+=bw;
+// Кожен користувач має унікальний візуальний код на основі базового кольору
+function makeVibeCode(baseHex, uid, w = 100, h = 100, opts = {}) {
+  const seed = hashStr(String(uid));
+  const cols = vibeColors(baseHex, seed);
+  const gid = 'vc' + seed;
+  const N = 9 + Math.floor(srand(seed) * 7);
+  const ws = Array.from({ length: N }, (_, i) => 0.4 + srand(seed + i * 7 + 1) * 2.2);
+  const tw = ws.reduce((a, b) => a + b, 0);
+
+  let bars = '', x = 0;
+  for (let i = 0; i < N; i++) {
+    const bw = (ws[i] / tw) * 100;
+    const yo = srand(seed + i * 3 + 2) * 18;
+    const bh = 100 - yo - srand(seed + i * 4 + 3) * 14;
+    const ci = Math.floor(srand(seed + i * 5 + 4) * 3);
+    const ug = srand(seed + i * 11 + 5) > 0.44;
+    const op = (0.62 + srand(seed + i * 13 + 6) * 0.38).toFixed(2);
+
+    bars += `<rect x="${x.toFixed(2)}" y="${yo.toFixed(2)}" width="${bw.toFixed(2)}" height="${bh.toFixed(2)}" fill="${ug ? `url(#${gid})` : cols[ci]}" opacity="${op}"/>`;
+    x += bw;
   }
+
+  // Логіка для друзів: неоновий контур кольору вайбу поточного юзера
   const isFrnd = opts.friend && isFriend(uid);
-  const myVibe = currentVibeColor(APP.user || {baseColor:'#00c6ff'});
+  const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff' });
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
 
   const stroke = isFrnd ? myCols[0] : 'rgba(255,255,255,.1)';
-  const sw = isFrnd ? '4' : '.5';
-  const glow = isFrnd ? `filter: drop-shadow(0 0 3px ${myCols[0]}88);` : '';
+  const sw = isFrnd ? '4' : '0.5';
+  const glow = isFrnd ? `filter: drop-shadow(0 0 5px ${myCols[0]}cc);` : '';
 
-  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" style="display:block;${glow}"><defs><linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${cols[0]}"/><stop offset="50%" stop-color="${cols[1]}"/><stop offset="100%" stop-color="${cols[2]}"/></linearGradient></defs><rect width="100" height="100" fill="#090909"/>${bars}<rect width="100" height="100" fill="none" stroke="${stroke}" stroke-width="${sw}"/></svg>`;
+  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" style="display:block; ${glow}">
+    <defs>
+      <linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="${cols[0]}"/>
+        <stop offset="50%" stop-color="${cols[1]}"/>
+        <stop offset="100%" stop-color="${cols[2]}"/>
+      </linearGradient>
+    </defs>
+    <rect width="100" height="100" fill="#090909"/>
+    ${bars}
+    <rect width="100" height="100" fill="none" stroke="${stroke}" stroke-width="${sw}"/>
+  </svg>`;
 }
 
 function postGrad(user) {
@@ -96,26 +117,28 @@ function saveMoodHist(id) {
   localStorage.setItem(k, JSON.stringify(filtered.slice(-30)));
 }
 
-// Генерація HTML для аватара (фото або ініціали з кільцем вайбу)
-function avatarHTML(user, size=38, opts={}) {
+// Генерація HTML для аватара
+// Якщо юзер є другом, додається неоновий контур кольору вайбу поточного авторизованого користувача
+function avatarHTML(user, size = 38, opts = {}) {
   const vibe = currentVibeColor(user);
   const cols = vibeColors(vibe, hashStr(user.id));
   const isFrnd = opts.friend && isFriend(user.id);
 
-  // Якщо юзер — друг, витягуємо колір власного вайбу авторизованого юзера для контуру
-  const myVibe = currentVibeColor(APP.user || {baseColor:'#00c6ff'});
+  // Отримуємо колір вайбу поточного юзера для акценту на друзях
+  const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff' });
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
 
   const borderColor = isFrnd ? myCols[0] : cols[0];
   const border = isFrnd
-    ? `3px solid ${borderColor}` // friend neon ring (using MY vibe color as per request)
+    ? `3px solid ${borderColor}` // Неонове кільце для друзів
     : `2.5px solid ${cols[0]}55`;
-  const glow = isFrnd ? `box-shadow:0 0 10px ${borderColor}aa;` : '';
+  const glow = isFrnd ? `box-shadow: 0 0 12px ${borderColor}99;` : '';
   const cls = isFrnd ? ' ava-friend' : '';
 
   if (user.avatar) {
-    return `<img src="${user.avatar}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;display:block;border:${border};${glow}" class="era-ava${cls}">`;
+    return `<img src="${user.avatar}" style="width:${size}px; height:${size}px; border-radius:50%; object-fit:cover; display:block; border:${border}; ${glow}" class="era-ava${cls}">`;
   }
-  const init = (user.displayName||user.username||'?').slice(0,2).toUpperCase();
-  return `<div class="era-ava${cls}" style="width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg,${cols[0]},${cols[1]});display:flex;align-items:center;justify-content:center;font-size:${Math.floor(size*.36)}px;font-weight:700;color:#fff;flex-shrink:0;border:${border};${glow}">${init}</div>`;
+
+  const init = (user.displayName || user.username || '?').slice(0, 2).toUpperCase();
+  return `<div class="era-ava${cls}" style="width:${size}px; height:${size}px; border-radius:50%; background:linear-gradient(135deg, ${cols[0]}, ${cols[1]}); display:flex; align-items:center; justify-content:center; font-size:${Math.floor(size * 0.36)}px; font-weight:700; color:#fff; flex-shrink:0; border:${border}; ${glow}">${init}</div>`;
 }

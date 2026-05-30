@@ -109,39 +109,51 @@ function buildLightbox(dir=0) {
     setTimeout(() => initCarousel(p.id, imgs.length, true), 0);
   }
 
-  const wrapEl=lb.querySelector('.lb-wrap');
-  let vSY=0,vDrag=false;
+  const wrapEl = lb.querySelector('.lb-wrap');
+  let vSY = 0, vSX = 0, vDrag = false, isVertical = false;
 
   const onVStart = e => {
-    // If we're on the image and it's a single photo, allow swipe-to-close everywhere
-    // If it's a carousel, only allow swipe-to-close if we're swiping vertically
-    vSY=e.touches ? e.touches[0].clientY : e.clientY;
-    vDrag=true;
-    wrapEl.style.transition='none';
+    vSY = e.touches ? e.touches[0].clientY : e.clientY;
+    vSX = e.touches ? e.touches[0].clientX : e.clientX;
+    vDrag = true;
+    isVertical = false;
+    wrapEl.style.transition = 'none';
   };
 
   const onVMove = e => {
-    if(!vDrag) return;
+    if (!vDrag) return;
+    const x = e.touches ? e.touches[0].clientX : e.clientX;
     const y = e.touches ? e.touches[0].clientY : e.clientY;
+    const dx = x - vSX;
     const dy = y - vSY;
+    const absDx = Math.abs(dx);
     const absDy = Math.abs(dy);
 
-    if(absDy > 10) {
-      const scale = Math.max(0.7, 1 - absDy/1000);
-      const opacity = Math.max(0, 1 - absDy/400);
+    // Якщо свайп явно вертикальний — активуємо закриття
+    if (!isVertical && absDy > absDx && absDy > 5) {
+      isVertical = true;
+    }
+
+    if (isVertical) {
+      // Swipe-to-close: фото зменшується і стає прозорим за пальцем
+      const scale = Math.max(0.6, 1 - absDy / 1200);
+      const opacity = Math.max(0, 1 - absDy / 500);
       wrapEl.style.transform = `translateY(${dy}px) scale(${scale})`;
       lb.style.opacity = opacity;
-      if(e.cancelable) e.preventDefault();
+      if (e.cancelable) e.preventDefault();
     }
   };
 
   const onVEnd = e => {
-    if(!vDrag) return;
+    if (!vDrag) return;
     vDrag = false;
     const y = e.changedTouches ? e.changedTouches[0].clientY : (e.clientY || vSY);
     const dy = y - vSY;
-    wrapEl.style.transition='transform .3s cubic-bezier(.22,1,.36,1), opacity .3s';
-    if(Math.abs(dy) > 120) {
+
+    wrapEl.style.transition = 'transform .3s cubic-bezier(.22,1,.36,1), opacity .3s';
+
+    // Закриваємо при достатньому зміщенні (вгору або вниз)
+    if (isVertical && Math.abs(dy) > 130) {
       wrapEl.style.transform = `translateY(${dy > 0 ? '100vh' : '-100vh'}) scale(0.5)`;
       lb.style.opacity = '0';
       setTimeout(() => closeLightbox(), 250);
@@ -151,9 +163,9 @@ function buildLightbox(dir=0) {
     }
   };
 
-  lb.addEventListener('touchstart', onVStart, {passive:true});
-  lb.addEventListener('touchmove', onVMove, {passive:false});
-  lb.addEventListener('touchend', onVEnd, {passive:true});
+  lb.addEventListener('touchstart', onVStart, { passive: true });
+  lb.addEventListener('touchmove', onVMove, { passive: false });
+  lb.addEventListener('touchend', onVEnd, { passive: true });
 
   lb.addEventListener('mousedown', onVStart);
   window.addEventListener('mousemove', onVMove);

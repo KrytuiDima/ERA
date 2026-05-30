@@ -12,31 +12,31 @@ function openCreatePost() {
 }
 
 // Обробка вибраних фото для поста
-function onPostFile(e) {
-  const files = Array.from(e.target.files||[]); if(!files.length) return;
+// Використовує кропер з пропорціями 4:5 для забезпечення естетики стрічки
+async function onPostFile(e) {
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
   e.target.value = '';
 
   const readFile = f => new Promise(res => {
-    const r=new FileReader();
-    r.onload=ev=>res(ev.target.result);
+    const r = new FileReader();
+    r.onload = ev => res(ev.target.result);
     r.readAsDataURL(f);
   });
 
-  // Для постів використовуємо кропер 4:5
-  readFile(files[0]).then(src => {
-    showCropTool(src, cropped => {
-      if (files.length > 1) {
-        // Якщо вибрано кілька фото — перше кропається, інші додаються як є (або можна по черзі)
-        Promise.all(files.slice(1).map(readFile)).then(rest => {
-          POST_IMGS = [...POST_IMGS, cropped, ...rest].slice(0,10);
-          renderUploadGrid();
-        });
-      } else {
-        POST_IMGS = [...POST_IMGS, cropped].slice(0,10);
-        renderUploadGrid();
-      }
-    }, { ratio: 4/5 });
-  });
+  // Для першого фото завжди відкриваємо кропер 4:5
+  const firstSrc = await readFile(files[0]);
+
+  showCropTool(firstSrc, async (cropped) => {
+    if (files.length > 1) {
+      // Якщо вибрано кілька фото — інші додаються автоматично (можна розширити до кропу всіх)
+      const rest = await Promise.all(files.slice(1).map(readFile));
+      POST_IMGS = [...POST_IMGS, cropped, ...rest].slice(0, 10);
+    } else {
+      POST_IMGS = [...POST_IMGS, cropped].slice(0, 10);
+    }
+    renderUploadGrid();
+  }, { ratio: 4/5 });
 }
 
 function renderUploadGrid() {
@@ -71,37 +71,45 @@ function updateDescCnt() {
   el.style.color = len>270 ? 'var(--red)' : 'var(--t3)';
 }
 
-function submitPost() {
+// Публікація нового поста
+async function submitPost() {
   const desc = document.getElementById('desc-ta')?.value.trim() || '';
   if (!POST_IMGS.length && !desc) {
     showToast(t('errors.fillDesc'));
     return;
   }
+
   const np = {
-    id: 'p_'+Date.now(),
+    id: 'p_' + Date.now(),
     userId: APP.user.id,
     desc,
     images: POST_IMGS.length ? [...POST_IMGS] : null,
     ts: Date.now(),
-    likes: 0, liked: false,
+    likes: 0,
+    liked: false,
     myReaction: null,
-    reactions: {'😂':0,'🔥':0,'😢':0,'😮':0,'👏':0},
-    views: 0, pinned: false,
+    reactions: { '😂': 0, '🔥': 0, '😢': 0, '😮': 0, '👏': 0 },
+    views: 0,
+    pinned: false,
     comments: [],
   };
+
+  // Додаємо в локальний масив та імітуємо збереження в БД
   POSTS.unshift(np);
-  // Persist to localStorage
-  const saved = JSON.parse(localStorage.getItem('era_posts')||'[]');
+
+  const saved = JSON.parse(localStorage.getItem('era_posts') || '[]');
   saved.unshift(np);
-  localStorage.setItem('era_posts', JSON.stringify(saved.slice(0,30)));
-  // Close modal first, then render feed after animation completes
+  localStorage.setItem('era_posts', JSON.stringify(saved.slice(0, 30)));
+
+  // Закриваємо модалку та оновлюємо стрічку
   closeModal('modal-create');
   showToast(t('post.published'));
+
   setTimeout(() => {
     if (APP.view === 'feed') {
       setFeed(APP.feed);
     } else {
       setView('feed');
     }
-  }, 280);
+  }, 300);
 }

@@ -48,28 +48,31 @@ function renderFeed() {
 }
 
 // ── Post card ─────────────────────────────────────────────
-function renderPostCard(post, delay=0) {
-  const u    = getUser(post.userId);
-  const own  = APP.user && post.userId===APP.user.id;
+// Рендеринг картки поста для стрічки
+function renderPostCard(post, delay = 0) {
+  const u = getUser(post.userId);
+  const own = APP.user && post.userId === APP.user.id;
   const frnd = isFriend(post.userId);
-  const cols = vibeColors(currentVibeColor(u), hashStr(u.id));
+  const vibe = currentVibeColor(u);
+  const cols = vibeColors(vibe, hashStr(u.id));
   const imgs = getPostImages(post);
-  const bg   = postGrad(u);
-  const hasMulti = imgs && imgs.length>1;
+  const bg = postGrad(u);
+  const hasMulti = imgs && imgs.length > 1;
 
   let imgContent = '';
-  if (!imgs||imgs.length===0) {
+  if (!imgs || imgs.length === 0) {
     imgContent = `<div class="post-img-abs" style="background:${bg}"></div>`;
-  } else if (imgs.length===1) {
+  } else if (imgs.length === 1) {
     imgContent = `<img src="${imgs[0]}" alt="" draggable="false">`;
   } else {
-    imgContent = `<div class="carousel-track" id="ct-${post.id}">${imgs.map(i=>`<div class="carousel-slide"><img src="${i}" alt="" draggable="false"></div>`).join('')}</div><div class="carousel-dots" id="cd-${post.id}">${imgs.map((_,i)=>`<div class="c-dot${i===0?' on':''}"></div>`).join('')}</div><div class="carousel-ctr" id="cc-${post.id}">1/${imgs.length}</div>`;
+    imgContent = `<div class="carousel-track" id="ct-${post.id}">${imgs.map(i => `<div class="carousel-slide"><img src="${i}" alt="" draggable="false"></div>`).join('')}</div><div class="carousel-dots" id="cd-${post.id}">${imgs.map((_, i) => `<div class="c-dot${i === 0 ? ' on' : ''}"></div>`).join('')}</div><div class="carousel-ctr" id="cc-${post.id}">1/${imgs.length}</div>`;
   }
 
-  const myVibe = currentVibeColor(APP.user || {baseColor:'#00c6ff'});
+  // Акцент для друзів: неон кольору ВЛАСНОГО вайбу
+  const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff' });
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
   const friendMark = frnd
-    ? `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${myCols[0]};margin-left:5px;box-shadow:0 0 5px ${myCols[0]};vertical-align:middle" title="Друг"></span>`
+    ? `<span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${myCols[0]}; margin-left:6px; box-shadow:0 0 8px ${myCols[0]}; vertical-align:middle" title="Друг"></span>`
     : '';
 
   return `<div class="post-card" style="animation-delay:${delay}ms" id="post-${post.id}"
@@ -235,31 +238,42 @@ function openCmts(pid) {
 }
 
 // Рендеринг одного коментаря
+// Реалізовано відображення фото у вигляді квадратного прев'ю з відкриттям у загальному лайтбоксі
 function renderCmt(c) {
-  const u=getUser(c.userId);
-  const frnd=isFriend(c.userId);
-  const myVibe = currentVibeColor(APP.user || {baseColor:'#00c6ff'});
+  const u = getUser(c.userId);
+  const frnd = isFriend(c.userId);
+  const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff' });
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
 
   return `<div class="cmt-item">
-  <div class="cmt-ava" style="cursor:pointer" onclick="openUserCard('${u.id}')">${avatarHTML(u,30,{friend:true})}</div>
+  <div class="cmt-ava" style="cursor:pointer" onclick="openUserCard('${u.id}')">${avatarHTML(u, 30, { friend: true })}</div>
   <div class="cmt-bwrap">
-    <div><span class="cmt-uname" style="cursor:pointer" onclick="openUserCard('${u.id}')">@${esc(u.username)}</span>${frnd?`<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${myCols[0]};margin-left:4px;vertical-align:middle"></span>`:''}<span class="cmt-utime">${fmtTime(c.ts)}</span></div>
-    ${c.text?`<div class="cmt-text">${esc(c.text)}</div>`:''}
-    <!-- Фото в коментарі (маленьке квадратне прев'ю) -->
-    ${c.photo?`<div class="cmt-ph-wrap" onclick="expandPhoto('${c.photo}')"><img class="cmt-photo-img" src="${c.photo}" alt="" style="cursor:pointer; width:60px; height:60px; object-fit:cover; border-radius:8px; margin-top:6px; border: 1px solid var(--b1)"></div>`:''}
+    <div>
+      <span class="cmt-uname" style="cursor:pointer" onclick="openUserCard('${u.id}')">@${esc(u.username)}</span>
+      ${frnd ? `<span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:${myCols[0]}; margin-left:5px; vertical-align:middle; box-shadow:0 0 5px ${myCols[0]}"></span>` : ''}
+      <span class="cmt-utime">${fmtTime(c.ts)}</span>
+    </div>
+    ${c.text ? `<div class="cmt-text">${esc(c.text)}</div>` : ''}
+
+    <!-- Фото в коментарі: маленьке квадратне прев'ю -->
+    ${c.photo ? `<div class="cmt-ph-wrap" onclick="openPhotoLightbox('${c.photo}')">
+      <img class="cmt-photo-img" src="${c.photo}" alt="">
+    </div>` : ''}
   </div></div>`;
 }
 
-function expandPhoto(src) {
-  const lb=document.createElement('div'); lb.id='lightbox';
-  lb.innerHTML=`
-    <button class="lb-close" onclick="this.parentElement.remove();unlockScroll()">×</button>
-    <div class="lb-wrap" style="align-items:center;justify-content:center;height:100%">
-      <img src="${src}" style="max-width:100%;max-height:90vh;border-radius:12px">
+// Відкриття окремого фото (наприклад, з коментарів) у лайтбоксі
+function openPhotoLightbox(src) {
+  const lb = document.createElement('div');
+  lb.id = 'lightbox';
+  lb.innerHTML = `
+    <button class="lb-close" onclick="this.parentElement.remove(); unlockScroll(); eraBack()">×</button>
+    <div class="lb-wrap" style="align-items:center; justify-content:center; height:100%; animation:fadeIn .2s">
+      <img src="${src}" style="max-width:90%; max-height:85vh; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.8)">
     </div>`;
-  lb.onclick=e=>{if(e.target===lb) {lb.remove();unlockScroll();}};
+  lb.onclick = e => { if (e.target === lb) { lb.remove(); unlockScroll(); eraBack(); } };
   lockScroll();
+  eraPush('photo-view');
   document.body.appendChild(lb);
 }
 
@@ -269,13 +283,37 @@ function onCmtFile(e) {
 }
 function rmCmtPh() { CMT_PHOTO=null; document.getElementById('cmt-ph-prev').classList.add('hidden'); document.getElementById('cmt-file').value=''; }
 
-function sendCmt() {
-  const txt=document.getElementById('cmt-input').value.trim(); if(!txt&&!CMT_PHOTO) return;
-  const p=POSTS.find(x=>x.id===OPEN_POST); if(!p) return;
-  const nc={id:'c_'+Date.now(),userId:APP.user.id,text:txt,photo:CMT_PHOTO,ts:Date.now()};
+// Надсилання коментаря (асинхронно для Supabase)
+async function sendCmt() {
+  const txt = document.getElementById('cmt-input').value.trim();
+  if (!txt && !CMT_PHOTO) return;
+
+  const p = POSTS.find(x => x.id === OPEN_POST);
+  if (!p) return;
+
+  const nc = {
+    id: 'c_' + Date.now(),
+    userId: APP.user.id,
+    text: txt,
+    photo: CMT_PHOTO,
+    ts: Date.now()
+  };
+
   p.comments.push(nc);
-  const list=document.getElementById('cmt-list'); list.insertAdjacentHTML('beforeend',renderCmt(nc)); list.lastElementChild.scrollIntoView({behavior:'smooth'});
-  document.getElementById('cmt-input').value=''; CMT_PHOTO=null;
-  document.getElementById('cmt-ph-prev').classList.add('hidden'); document.getElementById('cmt-file').value='';
-  const cc=document.getElementById('cc-cmt-'+p.id); if(cc) cc.textContent=p.comments.length;
+
+  // Оновлюємо UI миттєво
+  const list = document.getElementById('cmt-list');
+  if (list) {
+    list.insertAdjacentHTML('beforeend', renderCmt(nc));
+    list.lastElementChild.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  // Очищення полів
+  document.getElementById('cmt-input').value = '';
+  CMT_PHOTO = null;
+  document.getElementById('cmt-ph-prev').classList.add('hidden');
+  document.getElementById('cmt-file').value = '';
+
+  const cc = document.getElementById('cc-cmt-' + p.id);
+  if (cc) cc.textContent = p.comments.length;
 }

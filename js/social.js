@@ -12,34 +12,41 @@ function getFriendIds() {
 
 // ── Follow / Unfollow ─────────────────────────────────────
 // Підписка на користувача (враховуючи приватність)
+// Всі мутації асинхронні для майбутньої інтеграції з Supabase
 async function followUser(uid) {
-  const user=getUser(uid), isPrivate=user?.privacy==='private';
+  const user = getUser(uid);
+  const isPrivate = user?.privacy === 'private';
+
   if (isPrivate) {
-    FOLLOWS.set(uid,'requested');
+    // Для приватних акаунтів створюємо запит
+    FOLLOWS.set(uid, 'requested');
     await saveFollowsToStorage();
-    // Додаємо запит, якщо його ще немає
-    const already=NOTIFS.find(n=>n.userId===APP.user.id&&n.type==='request'&&!n._processed);
-    if (!already) addNotif({type:'request', fromUid:APP.user.id, toUid:uid});
-    showToast(t('social.requestSent',{user:user.username}));
+    addNotif({ type: 'request', fromUid: APP.user.id, toUid: uid });
+    showToast(t('social.requestSent', { user: user.username }));
   } else {
-    FOLLOWS.set(uid,'following');
+    // Для публічних — миттєва підписка
+    FOLLOWS.set(uid, 'following');
     await saveFollowsToStorage();
-    const wasFollowedBack=FOLLOWERS.get(uid)===true;
-    if (wasFollowedBack) {
-      showToast(t('social.nowFriends',{user:user.username}));
+
+    // Якщо підписка взаємна — вони тепер друзі
+    if (FOLLOWERS.get(uid) === true) {
+      showToast(t('social.nowFriends', { user: user.username }));
     } else {
-      showToast(t('social.followedPublic',{user:user.username}));
+      showToast(t('social.followedPublic', { user: user.username }));
     }
+    if (APP.view === 'explore') renderExplore(document.getElementById('explore-inp')?.value || '');
     renderRightPanel();
   }
 }
 
-// Відписка
+// Відписка від користувача
 async function unfollowUser(uid) {
-  const user=getUser(uid);
+  const user = getUser(uid);
   FOLLOWS.delete(uid);
   await saveFollowsToStorage();
-  showToast(t('social.unfollowed',{user:user?.username||uid}));
+  showToast(t('social.unfollowed', { user: user?.username || uid }));
+
+  if (APP.view === 'explore') renderExplore(document.getElementById('explore-inp')?.value || '');
   renderRightPanel();
 }
 
@@ -78,20 +85,21 @@ async function toggleFollowUser(uid, btn) {
 }
 
 // ── Approve / Decline ─────────────────────────────────────
-// Схвалення запиту: Крок 1 — Дозволити перегляд
+// Схвалення запиту: Дія 1 — Дозволити перегляд
+// Це дає користувачу статус підписника та доступ до контенту
 async function approveRequest(fromUid) {
-  // Користувач стає підписником
   FOLLOWERS.set(fromUid, true);
   REQUESTS.delete(fromUid);
 
-  // Позначаємо нотіфікацію як оброблену (в майбутньому для БД)
-  const n = NOTIFS.find(x=>x.userId===fromUid && x.type==='request');
-  if(n) n._approved = true;
+  // Оновлюємо статус у списку сповіщень
+  const n = NOTIFS.find(x => x.userId === fromUid && x.type === 'request');
+  if (n) n._approved = true;
 
+  // Надсилаємо сповіщення про схвалення
   addNotif({ type: 'approved', fromUid: APP.user.id, toUid: fromUid });
   showToast(t('profile.requestApproved'));
 
-  // Оновлюємо UI
+  // Оновлюємо інтерфейс у всіх активних зонах
   if (document.getElementById('follow-requests-screen')) renderFollowRequests();
   if (APP.view === 'profile') renderProfile(APP.profileUid);
   if (APP.view === 'notif') renderNotif();
