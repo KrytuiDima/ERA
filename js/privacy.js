@@ -30,18 +30,26 @@ const PrivacyManager = {
 
   /**
    * Universal check for viewing content.
+   * Матриця доступу:
+   * Публічний акаунт: бачать усі.
+   * Приватний акаунт: бачать лише схвалені підписники (Дія 1).
    */
   async canUserViewContent(viewerId, ownerId, contentType = 'posts') {
-    const owner = await getUser(ownerId);
-    const rel = await this.getRelationship(viewerId, ownerId);
+    if (viewerId === ownerId) return true;
 
-    if (rel === 'OWNER') return true;
-    if (rel === 'BLOCKED') return false;
+    const owner = getUser(ownerId);
+    const isPrivate = owner?.privacy === 'private';
 
-    const privacy = owner.privacy_state || 'PUBLIC';
+    if (!isPrivate) return true;
 
-    if (privacy === 'PUBLIC') return true;
-    if (privacy === 'PRIVATE') return rel === 'FOLLOWER' || rel === 'CLOSE_FRIEND';
+    // Для локальної версії перевіряємо FOLLOWERS Map
+    // У Supabase це буде запит до таблиці permissions: is_follower === true
+    if (FOLLOWERS.get(viewerId) === true && ownerId === APP.user?.id) return true; // Me seeing my followers
+
+    // Якщо я дивлюсь когось іншого
+    if (viewerId === APP.user?.id) {
+       return FOLLOWS.get(ownerId) === 'following';
+    }
 
     return false;
   },

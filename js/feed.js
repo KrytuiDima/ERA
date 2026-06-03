@@ -125,36 +125,65 @@ function buildReacts(post) {
   }).join('');
 }
 
-function applyReact(pid, emoji, btn) {
-  const p = POSTS.find(x=>x.id===pid); if(!p) return;
+/**
+ * Керування реакціями та лайками.
+ * Функції асинхронні для майбутньої синхронізації з Supabase.
+ */
+async function applyReact(pid, emoji, btn) {
+  const p = POSTS.find(x => x.id === pid); if (!p) return;
   if (!p.reactions) p.reactions = {};
+
   const prev = p.myReaction;
-  if (prev===emoji) {
-    p.reactions[emoji] = Math.max(0,(p.reactions[emoji]||1)-1);
+  if (prev === emoji) {
+    p.reactions[emoji] = Math.max(0, (p.reactions[emoji] || 1) - 1);
     p.myReaction = null;
   } else {
-    if (prev) p.reactions[prev] = Math.max(0,(p.reactions[prev]||1)-1);
-    p.reactions[emoji] = (p.reactions[emoji]||0)+1;
+    if (prev) p.reactions[prev] = Math.max(0, (p.reactions[prev] || 1) - 1);
+    p.reactions[emoji] = (p.reactions[emoji] || 0) + 1;
     p.myReaction = emoji;
-    if (!p.liked) { p.liked=true; p.likes++; refreshLikeBtn(pid); }
+
+    // Автоматично ставимо лайк при додаванні реакції, якщо його не було
+    if (!p.liked) {
+      p.liked = true; p.likes++;
+      refreshLikeBtn(pid);
+    }
+
     if (btn) {
       btn.classList.remove('burst'); void btn.offsetWidth; btn.classList.add('burst');
-      const fl=document.createElement('span'); fl.className='react-float'; fl.textContent='+1';
-      btn.appendChild(fl); setTimeout(()=>fl.remove(),700);
+      const fl = document.createElement('span'); fl.className = 'react-float'; fl.textContent = '+1';
+      btn.appendChild(fl); setTimeout(() => fl.remove(), 700);
     }
   }
-  // Re-render reactions row
-  const rr = document.getElementById('rr-'+pid);
-  if (rr) { const lb=document.getElementById('lb-'+pid); rr.innerHTML=''; if(lb) rr.appendChild(lb); rr.insertAdjacentHTML('beforeend',buildReacts(p)); }
-  const lbRr = document.getElementById('lb-rr-'+pid); if(lbRr) lbRr.innerHTML=buildReacts(p);
+
+  // Оновлюємо інтерфейс реакцій у стрічці та лайтбоксі
+  const rr = document.getElementById('rr-' + pid);
+  if (rr) {
+    const lb = document.getElementById('lb-' + pid);
+    rr.innerHTML = '';
+    if (lb) rr.appendChild(lb);
+    rr.insertAdjacentHTML('beforeend', buildReacts(p));
+  }
+  const lbRr = document.getElementById('lb-rr-' + pid);
+  if (lbRr) lbRr.innerHTML = buildReacts(p);
+
+  // В майбутньому: await supabase.from('reactions').upsert({ post_id: pid, user_id: APP.user.id, emoji: p.myReaction });
 }
 
-function toggleLike(pid) {
-  const p = POSTS.find(x=>x.id===pid); if(!p) return;
-  p.liked=!p.liked; p.likes+=p.liked?1:-1;
+async function toggleLike(pid) {
+  const p = POSTS.find(x => x.id === pid); if (!p) return;
+
+  p.liked = !p.liked;
+  p.likes += p.liked ? 1 : -1;
+
   refreshLikeBtn(pid);
-  const btn=document.getElementById('lb-'+pid);
-  if(btn){btn.style.transform='scale(1.3)';setTimeout(()=>btn.style.transform='',200);}
+
+  const btn = document.getElementById('lb-' + pid);
+  if (btn) {
+    btn.style.transform = 'scale(1.3)';
+    setTimeout(() => btn.style.transform = '', 200);
+  }
+
+  // В майбутньому: p.liked ? await supabase.from('likes').insert(...) : await supabase.from('likes').delete(...);
 }
 
 function refreshLikeBtn(pid) {
@@ -179,11 +208,8 @@ function feedImgClick(e, pid) {
 }
 function feedDblTap(e, pid) {
   clearTimeout(feedTapTimer); feedTapTimer=null;
-  const p=POSTS.find(x=>x.id===pid); if(!p) return;
-  if(!p.liked){p.liked=true;p.likes++;refreshLikeBtn(pid);}
-  const wrap=document.getElementById('img-'+pid); if(!wrap) return;
-  const heart=document.createElement('div'); heart.className='like-heart-anim'; heart.textContent='❤️';
-  wrap.appendChild(heart); setTimeout(()=>heart.remove(),700);
+  const wrap = document.getElementById('img-' + pid);
+  if (wrap) lbDoubleTap(pid, wrap);
 }
 
 // ── Post actions ──────────────────────────────────────────

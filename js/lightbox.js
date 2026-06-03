@@ -135,11 +135,14 @@ function buildLightbox(dir=0) {
     }
 
     if (isVertical) {
-      // Swipe-to-close: фото зменшується і стає прозорим за пальцем
-      const scale = Math.max(0.6, 1 - absDy / 1200);
-      const opacity = Math.max(0, 1 - absDy / 500);
+      /**
+       * Swipe-to-close (Module 3):
+       * Фото плавно стає прозорим та зменшується за пальцем при свайпі вгору або вниз.
+       */
+      const scale = Math.max(0.6, 1 - absDy / 1500);
+      const opacity = Math.max(0.2, 1 - absDy / 800);
       wrapEl.style.transform = `translateY(${dy}px) scale(${scale})`;
-      lb.style.opacity = opacity;
+      lb.style.backgroundColor = `rgba(0, 0, 0, ${0.97 * opacity})`;
       if (e.cancelable) e.preventDefault();
     }
   };
@@ -185,19 +188,27 @@ function buildLightbox(dir=0) {
 }
 
 
-// Подвійний тап для лайка з анімацією серця
+/**
+ * Подвійний тап для лайка з анімацією серця.
+ * Використовується як у стрічці, так і в лайтбоксі.
+ */
 function lbDoubleTap(pid, imgArea) {
-  const p=POSTS.find(x=>x.id===pid); if(!p) return;
-  if(!p.liked){
-    p.liked=true;
+  const p = POSTS.find(x => x.id === pid); if (!p) return;
+
+  if (!p.liked) {
+    p.liked = true;
     p.likes++;
     refreshLikeBtn(pid);
+    // В майбутньому: await supabase.from('likes').insert({ post_id: pid, user_id: APP.user.id });
   }
-  // Велика іконка серця по центру
-  const heart=document.createElement('div');
-  heart.className='like-heart-anim';
-  heart.style.fontSize = '100px';
-  heart.textContent='❤️';
+
+  // Анімація великого серця по центру екрана
+  const heart = document.createElement('div');
+  heart.className = 'like-heart-anim';
+  // В лайтбоксі робимо серце ще більшим
+  if (imgArea.classList.contains('lb-img-area')) heart.style.fontSize = '120px';
+  heart.textContent = '❤️';
+
   imgArea.appendChild(heart);
-  setTimeout(()=>heart.remove(),700);
+  setTimeout(() => heart.remove(), 750);
 }

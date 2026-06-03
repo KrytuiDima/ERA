@@ -84,7 +84,7 @@ function renderNotifRow(n, idx) {
   // Кнопки дій для запитів (Action 1 та Action 2)
   const actionBtns = (n.type === 'request' && !n._approved) ? `
     <div style="display:flex; gap:6px; margin-top:8px">
-      <button onclick="event.stopPropagation(); approveRequest('${n.userId}')" style="padding:6px 14px; border-radius:8px; background:var(--grad); border:none; color:#000; font-size:12px; font-weight:600; cursor:pointer">${t('notif.approve')}</button>
+      <button onclick="event.stopPropagation(); approveViewing('${n.userId}')" style="padding:6px 14px; border-radius:8px; background:var(--grad); border:none; color:#000; font-size:12px; font-weight:600; cursor:pointer">${t('notif.approve')}</button>
       <button onclick="event.stopPropagation(); declineRequest('${n.userId}')" style="padding:6px 14px; border-radius:8px; background:var(--s3); border:1px solid var(--b1); color:var(--t2); font-size:12px; font-weight:600; cursor:pointer">${t('notif.decline')}</button>
     </div>` : '';
 
