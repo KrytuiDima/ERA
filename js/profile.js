@@ -38,7 +38,8 @@ function renderProfile(uid) {
   }
 
   // Матриця доступу: чи може користувач бачити контент
-  const canSee = !isUserPrivate(uid) || own || isF;
+  let canSee = !isUserPrivate(uid) || own || isF;
+
   const bannerImg = u.banner ? `<img src="${u.banner}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0">` : '';
 
   // Формування HTML профілю
@@ -52,8 +53,9 @@ function renderProfile(uid) {
 <div class="profile-info">
   <div class="profile-ava-row">
     <div class="profile-ava" ${own?`onclick="document.getElementById('pava-f').click()" title="${t('profile.changePhoto')}"`:''}>
-      <div class="profile-ava-glow" style="background:linear-gradient(135deg,${cols[0]},${cols[1]},${cols[2]});${frnd?'filter:blur(6px);opacity:.9;animation:none':''}"></div>
-      <div class="profile-ava-ring">${avatarHTML(u,84,{friend:false})}</div>
+      <!-- Контур вайбу для друзів: неон кольору власного вайбу -->
+      <div class="profile-ava-glow" style="background:linear-gradient(135deg,${frnd ? myCols[0] : cols[0]},${frnd ? myCols[1] : cols[1]},${frnd ? myCols[2] : cols[2]});${frnd?'filter:blur(10px);opacity:.9;animation:none':'opacity:.5'}"></div>
+      <div class="profile-ava-ring" style="${frnd ? 'border: 3px solid '+myCols[0] : ''}">${avatarHTML(u,84,{friend:true})}</div>
       ${own?`<input type="file" id="pava-f" accept="image/*" class="hidden" onchange="changeAva(event)">`:''}
     </div>
     <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
@@ -66,14 +68,14 @@ function renderProfile(uid) {
   <div class="profile-dname">${esc(u.displayName||u.username)}${frnd?` <span style="font-size:11px;color:${myCols[0]};font-weight:400">· ${t('profile.friends')}</span>`:''}</div>
   <div class="profile-handle">@${esc(u.username)}</div>
   
-  <!-- Біо до 150 символів -->
-  ${u.bio?`<div class="profile-bio">${esc(u.bio).slice(0,150)}</div>`:''}
+  <!-- Біо до 150 символів (Module 5) -->
+  ${u.bio ? `<div class="profile-bio">${esc(u.bio).slice(0, 150)}</div>` : ''}
   
-  <!-- Клікабельне посилання URL -->
-  ${u.website?`<div class="profile-link">
+  <!-- Клікабельне посилання URL з коректним target="_blank" (Module 5) -->
+  ${u.website ? `<div class="profile-link">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-    <a href="${u.website.startsWith('http')?u.website:'https://'+u.website}" target="_blank" rel="noopener noreferrer">${u.website.replace(/^https?:\/\//,'')}</a>
-  </div>`:''}
+    <a href="${u.website.startsWith('http') ? u.website : 'https://' + u.website}" target="_blank" rel="noopener noreferrer">${esc(u.website.replace(/^https?:\/\//, ''))}</a>
+  </div>` : ''}
   
   <div class="profile-stats">
     <div><div class="ps-n">${followers}</div><div class="ps-l">${t('profile.followers')}</div></div>
@@ -87,7 +89,7 @@ function renderProfile(uid) {
   
   <div class="vibe-sig">
     <span style="font-family:var(--mono);font-size:9px;color:var(--t3);letter-spacing:.08em">${t('profile.vibe')}</span>
-    <div class="vibe-sig-bar">${makeVibeCode(vibe,u.id,200,18)}</div>
+    <div class="vibe-sig-bar">${makeVibeCode(vibe,u.id,200,18, {friend: true})}</div>
     <span style="font-family:var(--mono);font-size:8px;color:var(--t3)">${vibe}</span>
   </div>
 </div>
@@ -96,8 +98,8 @@ function renderProfile(uid) {
 ${!canSee
   ? `<div class="empty-state" style="margin-top:40px; animation:fadeIn .3s ease">
       <div class="lock-screen-icon" style="font-size:48px; margin-bottom:16px">🔒</div>
-      <div class="empty-txt" style="font-size:14px; font-weight:600">Закритий акаунт</div>
-      <div class="empty-txt" style="font-size:12px; color:var(--t3); margin-top:4px">Підпишись, щоб бачити пости та медіа</div>
+      <div class="empty-txt" style="font-size:14px; font-weight:600">${t('social.privateAcc')}</div>
+      <div class="empty-txt" style="font-size:12px; color:var(--t3); margin-top:4px">${t('social.privateAccMsg')}</div>
     </div>`
   : sorted.length===0
     ? `<div class="empty-state"><div class="empty-ico">📸</div><div class="empty-txt">${own?t('post.emptyPosts'):t('post.emptyOtherPosts')}</div></div>`
@@ -118,34 +120,46 @@ function renderFullProfile(uid) {
   renderProfile(uid);
 }
 
-// Зміна аватара з використанням кропера (1:1)
+/**
+ * Оновлення аватара та банера з використанням вбудованого кропера.
+ * Забезпечує правильні пропорції: 1:1 для фото, 16:9 для банера.
+ */
+
+// Зміна аватара (1:1)
 async function changeAva(e) {
-  const f=e.target.files[0]; if(!f) return;
-  const r=new FileReader();
-  r.onload=ev=>{
-    // Викликаємо кропер з пропорціями 1:1
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => {
     showCropTool(ev.target.result, async res => {
       APP.user.avatar = res; 
       await saveUserData();
-      document.getElementById('sb-ava').innerHTML = avatarHTML(APP.user,34);
-      document.getElementById('bn-ava').innerHTML = avatarHTML(APP.user,24);
-      renderProfile(APP.user.id); 
+
+      // Оновлюємо аватар у сайдбарі та навігації
+      document.getElementById('sb-ava').innerHTML = avatarHTML(APP.user, 34);
+      document.getElementById('bn-ava').innerHTML = avatarHTML(APP.user, 24);
+
+      // Оновлюємо поточний вигляд
+      if (APP.view === 'profile') renderProfile(APP.user.id);
+      else if (APP.view === 'settings') renderSettings();
+
       showToast(t('profile.photoUpdated'));
     }, { ratio: 1, round: true });
   };
   r.readAsDataURL(f);
 }
 
-// Зміна банера профілю з використанням кропера (16:9)
+// Зміна банера профілю (16:9)
 async function changeBanner(e) {
-  const f=e.target.files[0]; if(!f) return;
-  const r=new FileReader();
-  r.onload=ev=>{
-    // Викликаємо кропер з пропорціями 16:9
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => {
     showCropTool(ev.target.result, async res => {
       APP.user.banner = res; 
       await saveUserData();
-      renderProfile(APP.user.id); 
+
+      if (APP.view === 'profile') renderProfile(APP.user.id);
+      else if (APP.view === 'settings') renderSettings();
+
       showToast(t('profile.photoUpdated'));
     }, { ratio: 16/9 });
   };
