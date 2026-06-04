@@ -15,25 +15,27 @@ ${grouped.length === 0
   ? `<div class="empty-state"><div class="empty-ico">🔔</div><div class="empty-txt">${t('notif.empty')}</div></div>`
   : grouped.map((n, i) => renderNotifRow(n, i)).join('')}`;
 
-  // Автоматично позначаємо всі як прочитані (маркери зникнуть при наступному рендері або оновленні)
+  // Автоматично позначаємо всі як прочитані (Module 4)
   NOTIFS.forEach(n => n.unread = false);
   renderNotifBadge();
 }
 
 function _groupNotifs(notifs) {
-  // Group: same user liked multiple posts → show once
+  // Анти-спам групування (Module 4): лайки від одного юзера згортаються
   const out = [], seen = new Set();
   for (const n of notifs) {
     if (seen.has(n.id)) continue;
-    if (n.type==='like') {
-      const sameUser = notifs.filter(x=>x.userId===n.userId&&x.type==='like'&&!seen.has(x.id));
-      if (sameUser.length>1) {
-        const merged = {...sameUser[0], _count:sameUser.length, _ids:sameUser.map(x=>x.id)};
-        sameUser.forEach(x=>seen.add(x.id));
-        out.push(merged); continue;
+    if (n.type === 'like') {
+      const sameUser = notifs.filter(x => x.userId === n.userId && x.type === 'like' && !seen.has(x.id));
+      if (sameUser.length > 1) {
+        const merged = { ...sameUser[0], _count: sameUser.length, _ids: sameUser.map(x => x.id) };
+        sameUser.forEach(x => seen.add(x.id));
+        out.push(merged);
+        continue;
       }
     }
-    seen.add(n.id); out.push(n);
+    seen.add(n.id);
+    out.push(n);
   }
   return out;
 }
@@ -46,7 +48,7 @@ function renderNotifRow(n, idx) {
   const postBg = post ? postGrad(getUser(post.userId)) : '';
   const postImg = post ? (getPostImages(post) || [])[0] : null;
 
-  // Колір маркера новизни — колір власного вайбу поточного авторизованого юзера
+  // Колір маркера новизни (Module 4) — колір власного вайбу поточного авторизованого юзера
   const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff', id: 'me' });
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
   const dotColor = myCols[0];
@@ -94,15 +96,15 @@ function renderNotifRow(n, idx) {
     : '';
 
   return `<div class="notif-row" style="display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--b1); animation:fadeUp .22s ease ${idx * 25}ms both; position: relative">
-  <!-- Маркер новизни (крапка кольору вайбу юзера) -->
-  ${n.unread ? `<div style="position:absolute; left:5px; top:50%; transform:translateY(-50%); width:6px; height:6px; border-radius:50%; background:${dotColor}; box-shadow:0 0 6px ${dotColor}"></div>` : ''}
+  <!-- Маркер новизни (крапка кольору вайбу юзера — Module 4) -->
+  ${n.unread ? `<div style="position:absolute; left:5px; top:50%; transform:translateY(-50%); width:6px; height:6px; border-radius:50%; background:${dotColor}; box-shadow:0 0 8px ${dotColor}"></div>` : ''}
 
-  <!-- Зона A: Аватар -> Профіль -->
+  <!-- Зона A: Аватар -> Профіль (Module 4) -->
   <div style="flex-shrink:0; cursor:pointer" onclick="renderFullProfile('${u.id}')">
     ${avatarHTML(u, 40, { friend: true })}
   </div>
 
-  <!-- Зона B: Текст -> Пост -->
+  <!-- Зона B: Текст -> Пост (Module 4) -->
   <div style="flex:1; min-width:0; cursor:pointer" onclick="${post ? `expandPost('${post.id}')` : ''}">
     <div style="font-size:13px; color:var(--t1); line-height:1.4">${text}</div>
     <div style="font-size:10px; color:var(--t3); margin-top:3px">${fmtTime(n.ts)}</div>
@@ -111,7 +113,7 @@ function renderNotifRow(n, idx) {
 
   ${followBackBtn}
 
-  <!-- Зона C: Прев'ю поста -> Лайтбокс -->
+  <!-- Зона C: Прев'ю поста -> Лайтбокс (Module 4) -->
   ${post ? `<div style="width:40px; height:40px; border-radius:8px; overflow:hidden; flex-shrink:0; background:${postBg}; cursor:pointer" onclick="expandPost('${post.id}')">
     ${postImg ? `<img src="${postImg}" style="width:100%; height:100%; object-fit:cover">` : ''}
   </div>` : ''}

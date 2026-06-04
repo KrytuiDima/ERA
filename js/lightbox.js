@@ -135,9 +135,9 @@ function buildLightbox(dir=0) {
     }
 
     if (isVertical) {
-      // Swipe-to-close: фото зменшується і стає прозорим за пальцем
-      const scale = Math.max(0.6, 1 - absDy / 1200);
-      const opacity = Math.max(0, 1 - absDy / 500);
+      // Swipe-to-close (Module 3): фото зменшується і стає прозорим за пальцем
+      const scale = Math.max(0.65, 1 - absDy / 1500);
+      const opacity = Math.max(0.1, 1 - absDy / 600);
       wrapEl.style.transform = `translateY(${dy}px) scale(${scale})`;
       lb.style.opacity = opacity;
       if (e.cancelable) e.preventDefault();
@@ -185,19 +185,20 @@ function buildLightbox(dir=0) {
 }
 
 
-// Подвійний тап для лайка з анімацією серця
+// Подвійний тап для лайка з анімацією серця (Module 3)
 function lbDoubleTap(pid, imgArea) {
-  const p=POSTS.find(x=>x.id===pid); if(!p) return;
-  if(!p.liked){
-    p.liked=true;
+  const p = POSTS.find(x => x.id === pid); if (!p) return;
+  if (!p.liked) {
+    p.liked = true;
     p.likes++;
     refreshLikeBtn(pid);
   }
   // Велика іконка серця по центру
-  const heart=document.createElement('div');
-  heart.className='like-heart-anim';
+  const heart = document.createElement('div');
+  heart.className = 'like-heart-anim';
   heart.style.fontSize = '100px';
-  heart.textContent='❤️';
+  heart.style.filter = 'drop-shadow(0 0 20px rgba(255,0,0,0.5))';
+  heart.textContent = '❤️';
   imgArea.appendChild(heart);
-  setTimeout(()=>heart.remove(),700);
+  setTimeout(() => heart.remove(), 800);
 }

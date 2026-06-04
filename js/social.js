@@ -84,32 +84,42 @@ async function toggleFollowUser(uid, btn) {
   }
 }
 
-// ── Approve / Decline ─────────────────────────────────────
-// Схвалення запиту: Дія 1 — Дозволити перегляд
-// Це дає користувачу статус підписника та доступ до контенту
+// ── Approve / Decline (Дворівневе схвалення) ──────────────
+// Action 1: "Дозволити перегляд". Користувач стає підписником.
+// Це дає доступ до перегляду постів та медіа-коментарів.
 async function approveRequest(fromUid) {
+  // Майбутній Supabase: await supabase.from('permissions').update({ is_follower: true }).match({ user_id: APP.user.id, target_id: fromUid });
   FOLLOWERS.set(fromUid, true);
   REQUESTS.delete(fromUid);
 
-  // Оновлюємо статус у списку сповіщень
+  // Оновлюємо статус у списку сповіщень для розблокування Action 2
   const n = NOTIFS.find(x => x.userId === fromUid && x.type === 'request');
   if (n) n._approved = true;
 
-  // Надсилаємо сповіщення про схвалення
+  // Надсилаємо сповіщення про схвалення (Action 1 завершено)
   addNotif({ type: 'approved', fromUid: APP.user.id, toUid: fromUid });
   showToast(t('profile.requestApproved'));
 
-  // Оновлюємо інтерфейс у всіх активних зонах
+  // Оновлюємо інтерфейс для відображення змін
   if (document.getElementById('follow-requests-screen')) renderFollowRequests();
-  if (APP.view === 'profile') renderProfile(APP.profileUid);
+  if (APP.profileUid === APP.user?.id || APP.profileUid === fromUid) renderProfile(APP.profileUid);
   if (APP.view === 'notif') renderNotif();
   renderNotifBadge();
 }
 
-// Крок 2 — Підписатися у відповідь (стають друзями)
+// Action 2: "+ Підписатися у відповідь". Стає доступною лише після Action 1.
+// Коли підписка стає взаємною, статус автоматично змінюється на "Друзі".
 async function followBack(uid) {
+  // Перевіряємо, чи вже дозволено перегляд (Action 1)
+  if (!FOLLOWERS.has(uid)) {
+    console.warn("Потрібно спочатку дозволити перегляд");
+    return;
+  }
+
   await followUser(uid);
+  // Після взаємної підписки isFriend(uid) поверне true
   if (APP.view === 'notif') renderNotif();
+  if (APP.view === 'profile') renderProfile(APP.profileUid);
 }
 
 async function declineRequest(fromUid) {
@@ -151,23 +161,23 @@ function getPinnedPosts(uid) {
   return (u?.pinnedPosts||[]).filter(pid=>POSTS.find(p=>p.id===pid));
 }
 
-// Закріплення поста (макс 3)
+// Закріплення поста (макс 3 — Module 5)
 async function pinPost(pid) {
   if (!APP.user) return;
-  const pinned=APP.user.pinnedPosts||[];
+  const pinned = APP.user.pinnedPosts || [];
   if (pinned.includes(pid)) return;
 
-  // Якщо вже 3 закріплено — показуємо модалку заміни
-  if (pinned.length>=MAX_PINS){
+  // Якщо вже 3 закріплено — показуємо модальне вікно заміни (Module 5)
+  if (pinned.length >= MAX_PINS) {
     showPinReplaceDialog(pid);
     return;
   }
 
-  APP.user.pinnedPosts=[pid,...pinned];
-  const p=POSTS.find(x=>x.id===pid); if(p) p.pinned=true;
+  APP.user.pinnedPosts = [pid, ...pinned];
+  const p = POSTS.find(x => x.id === pid); if (p) p.pinned = true;
   await saveUserData();
   showToast(t('post.pinned'));
-  if (APP.view==='profile') renderProfile(APP.user.id);
+  if (APP.view === 'profile') renderProfile(APP.user.id);
 }
 
 // Відкріплення
@@ -180,27 +190,37 @@ async function unpinPost(pid) {
   if (APP.view==='profile') renderProfile(APP.user.id);
 }
 
+// Швидке модальне вікно для заміни закріпленого поста (Module 5)
 function showPinReplaceDialog(newPid) {
-  const pinned=getPinnedPosts(APP.user.id);
-  const lb=document.createElement('div'); lb.id='pin-replace-dialog';
-  lb.style.cssText='position:fixed;inset:0;z-index:700;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .18s ease';
-  lb.innerHTML=`
-    <div style="background:var(--s1);border:1px solid var(--b2);border-radius:20px;padding:24px;width:100%;max-width:380px">
-      <div style="font-size:15px;font-weight:700;margin-bottom:6px">${t('post.pinLimit')}</div>
-      <div style="font-size:12px;color:var(--t2);margin-bottom:18px">${t('post.pinLimitHint')}</div>
-      <div style="display:flex;gap:10px;margin-bottom:18px">
-        ${pinned.map(pid=>{
-          const p=POSTS.find(x=>x.id===pid),u=getUser(p?.userId||'');
-          const bg=postGrad(u),imgs=getPostImages(p);
-          return`<div style="flex:1;aspect-ratio:1;border-radius:10px;overflow:hidden;cursor:pointer;border:2px solid transparent;transition:border .18s" onclick="replacePinWith('${pid}','${newPid}');document.getElementById('pin-replace-dialog').remove()" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='transparent'">
-            ${imgs&&imgs[0]?`<img src="${imgs[0]}" style="width:100%;height:100%;object-fit:cover">`:
+  const pinned = getPinnedPosts(APP.user.id);
+  const lb = document.createElement('div');
+  lb.id = 'pin-replace-dialog';
+  lb.style.cssText = 'position:fixed;inset:0;z-index:700;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .18s ease';
+
+  // Інтеграція з History API
+  eraPush('pin-replace');
+
+  lb.innerHTML = `
+    <div style="background:var(--s1);border:1px solid var(--b2);border-radius:24px;padding:28px;width:100%;max-width:400px;box-shadow:0 15px 50px rgba(0,0,0,0.8)">
+      <div style="font-size:16px;font-weight:700;margin-bottom:8px;text-align:center">${t('post.pinLimit')}</div>
+      <div style="font-size:13px;color:var(--t2);margin-bottom:24px;text-align:center;line-height:1.5">${t('post.pinLimitHint')}</div>
+      <div style="display:flex;gap:12px;margin-bottom:24px">
+        ${pinned.map(pid => {
+          const p = POSTS.find(x => x.id === pid), u = getUser(p?.userId || '');
+          const bg = postGrad(u), imgs = getPostImages(p);
+          return `<div style="flex:1;aspect-ratio:1;border-radius:12px;overflow:hidden;cursor:pointer;border:2px solid var(--b1);transition:all .2s ease"
+            onclick="replacePinWith('${pid}','${newPid}');eraBack()"
+            onmouseover="this.style.borderColor='var(--blue)';this.style.transform='scale(1.05)'"
+            onmouseout="this.style.borderColor='var(--b1)';this.style.transform='scale(1)'">
+            ${imgs && imgs[0] ? `<img src="${imgs[0]}" style="width:100%;height:100%;object-fit:cover">` :
             `<div style="width:100%;height:100%;background:${bg}"></div>`}
           </div>`;
         }).join('')}
       </div>
-      <button onclick="document.getElementById('pin-replace-dialog').remove()" style="width:100%;padding:10px;border-radius:9px;background:var(--s2);border:1px solid var(--b1);color:var(--t2);font-size:13px;font-weight:600;cursor:pointer">Скасувати</button>
+      <button onclick="eraBack()" style="width:100%;padding:12px;border-radius:12px;background:var(--s2);border:1px solid var(--b2);color:var(--t1);font-size:14px;font-weight:600;cursor:pointer;transition:background .15s">Скасувати</button>
     </div>`;
-  lb.addEventListener('click',e=>{if(e.target===lb)lb.remove();});
+
+  lb.addEventListener('click', e => { if (e.target === lb) eraBack(); });
   document.body.appendChild(lb);
 }
 

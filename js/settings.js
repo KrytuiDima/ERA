@@ -123,7 +123,7 @@ function liveVibePreview() {
 }
 
 /**
- * Зберігає оновлені дані профілю
+ * Зберігає оновлені дані профілю (Module 5)
  */
 async function saveProfile() {
   const dname = document.getElementById('s-dname').value.trim();
