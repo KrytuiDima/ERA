@@ -16,7 +16,7 @@ function setView(v) {
   else if (v==='settings') renderSettings();
 }
 
-// ── Explore (Пошук користувачів) ───────────────────────────
+// ── Explore (Пошук користувачів — Module 5) ────────────────
 // Реалізовано швидкий пошук з відображенням Vibe Code та статусу відносин
 async function renderExplore(q) {
   const sq = q.toLowerCase();
@@ -40,6 +40,7 @@ ${filtered.length === 0
       const isF = status === 'following';
       const isReq = status === 'requested';
       
+      // Візуальні статуси відносин (Module 5)
       let statusTxt = '';
       if (frnd) statusTxt = t('profile.friends');
       else if (isF) statusTxt = t('profile.youFollow');

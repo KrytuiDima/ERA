@@ -37,7 +37,7 @@ function renderProfile(uid) {
     followBtn = `<button class="profile-follow-btn" id="pfb" onclick="toggleFollowUser('${uid}',this)">${t('profile.follow')}</button>`;
   }
 
-  // Матриця доступу: чи може користувач бачити контент
+  // Матриця доступу: чи може користувач бачити контент (Module 1)
   const canSee = !isUserPrivate(uid) || own || isF;
   const bannerImg = u.banner ? `<img src="${u.banner}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0">` : '';
 
@@ -66,14 +66,14 @@ function renderProfile(uid) {
   <div class="profile-dname">${esc(u.displayName||u.username)}${frnd?` <span style="font-size:11px;color:${myCols[0]};font-weight:400">· ${t('profile.friends')}</span>`:''}</div>
   <div class="profile-handle">@${esc(u.username)}</div>
   
-  <!-- Біо до 150 символів -->
-  ${u.bio?`<div class="profile-bio">${esc(u.bio).slice(0,150)}</div>`:''}
+  <!-- Біо до 150 символів (Module 5) -->
+  ${u.bio ? `<div class="profile-bio">${esc(u.bio).slice(0, 150)}</div>` : ''}
   
-  <!-- Клікабельне посилання URL -->
-  ${u.website?`<div class="profile-link">
+  <!-- Клікабельне посилання URL (Module 5) -->
+  ${u.website ? `<div class="profile-link">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-    <a href="${u.website.startsWith('http')?u.website:'https://'+u.website}" target="_blank" rel="noopener noreferrer">${u.website.replace(/^https?:\/\//,'')}</a>
-  </div>`:''}
+    <a href="${u.website.startsWith('http') ? u.website : 'https://' + u.website}" target="_blank" rel="noopener noreferrer">${u.website.replace(/^https?:\/\//, '')}</a>
+  </div>` : ''}
   
   <div class="profile-stats">
     <div><div class="ps-n">${followers}</div><div class="ps-l">${t('profile.followers')}</div></div>
@@ -92,12 +92,13 @@ function renderProfile(uid) {
   </div>
 </div>
 
-<!-- Блок контенту: сітка постів або замок приватності -->
+<!-- Блок контенту: сітка постів або замок приватності (Module 1) -->
 ${!canSee
   ? `<div class="empty-state" style="margin-top:40px; animation:fadeIn .3s ease">
-      <div class="lock-screen-icon" style="font-size:48px; margin-bottom:16px">🔒</div>
-      <div class="empty-txt" style="font-size:14px; font-weight:600">Закритий акаунт</div>
-      <div class="empty-txt" style="font-size:12px; color:var(--t3); margin-top:4px">Підпишись, щоб бачити пости та медіа</div>
+      <div class="lock-screen-icon" style="font-size:48px; margin-bottom:16px; filter: drop-shadow(0 0 10px ${cols[0]}44)">🔒</div>
+      <div class="empty-txt" style="font-size:14px; font-weight:700; color:var(--t1)">${t('social.privateAcc')}</div>
+      <div class="empty-txt" style="font-size:12px; color:var(--t2); margin-top:6px; line-height:1.5">${t('social.privateAccMsg')}</div>
+      ${!isReq ? `<button class="profile-follow-btn" style="margin-top:20px" onclick="toggleFollowUser('${uid}',this)">${t('profile.follow')}</button>` : ''}
     </div>`
   : sorted.length===0
     ? `<div class="empty-state"><div class="empty-ico">📸</div><div class="empty-txt">${own?t('post.emptyPosts'):t('post.emptyOtherPosts')}</div></div>`
@@ -118,17 +119,18 @@ function renderFullProfile(uid) {
   renderProfile(uid);
 }
 
-// Зміна аватара з використанням кропера (1:1)
+// Зміна аватара з використанням кропера (1:1) — Module 2
 async function changeAva(e) {
-  const f=e.target.files[0]; if(!f) return;
-  const r=new FileReader();
-  r.onload=ev=>{
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => {
     // Викликаємо кропер з пропорціями 1:1
     showCropTool(ev.target.result, async res => {
       APP.user.avatar = res; 
       await saveUserData();
-      document.getElementById('sb-ava').innerHTML = avatarHTML(APP.user,34);
-      document.getElementById('bn-ava').innerHTML = avatarHTML(APP.user,24);
+      document.getElementById('sb-ava').innerHTML = avatarHTML(APP.user, 34);
+      const bnAva = document.getElementById('bn-ava');
+      if (bnAva) bnAva.innerHTML = avatarHTML(APP.user, 24);
       renderProfile(APP.user.id); 
       showToast(t('profile.photoUpdated'));
     }, { ratio: 1, round: true });
@@ -136,11 +138,11 @@ async function changeAva(e) {
   r.readAsDataURL(f);
 }
 
-// Зміна банера профілю з використанням кропера (16:9)
+// Зміна банера профілю з використанням кропера (16:9) — Module 2
 async function changeBanner(e) {
-  const f=e.target.files[0]; if(!f) return;
-  const r=new FileReader();
-  r.onload=ev=>{
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => {
     // Викликаємо кропер з пропорціями 16:9
     showCropTool(ev.target.result, async res => {
       APP.user.banner = res; 

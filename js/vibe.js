@@ -63,10 +63,10 @@ function makeVibeCode(baseHex, uid, w = 100, h = 100, opts = {}) {
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
 
   const stroke = isFrnd ? myCols[0] : 'rgba(255,255,255,.1)';
-  const sw = isFrnd ? '4' : '0.5';
-  const glow = isFrnd ? `filter: drop-shadow(0 0 5px ${myCols[0]}cc);` : '';
+  const sw = isFrnd ? '3.5' : '0.5';
+  const glow = isFrnd ? `filter: drop-shadow(0 0 6px ${myCols[0]}aa);` : '';
 
-  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" style="display:block; ${glow}">
+  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" style="display:block; ${glow} border-radius:inherit">
     <defs>
       <linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="1">
         <stop offset="0%" stop-color="${cols[0]}"/>
@@ -130,9 +130,9 @@ function avatarHTML(user, size = 38, opts = {}) {
 
   const borderColor = isFrnd ? myCols[0] : cols[0];
   const border = isFrnd
-    ? `3px solid ${borderColor}` // Неонове кільце для друзів
-    : `2.5px solid ${cols[0]}55`;
-  const glow = isFrnd ? `box-shadow: 0 0 12px ${borderColor}99;` : '';
+    ? `2.5px solid ${borderColor}` // Неонове кільце для друзів
+    : `2px solid ${cols[0]}44`;
+  const glow = isFrnd ? `box-shadow: 0 0 14px ${borderColor}aa, inset 0 0 10px ${borderColor}44;` : '';
   const cls = isFrnd ? ' ava-friend' : '';
 
   if (user.avatar) {

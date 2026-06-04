@@ -72,10 +72,12 @@ function renderPostCard(post, delay = 0) {
   const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff' });
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
   const friendMark = frnd
-    ? `<span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${myCols[0]}; margin-left:6px; box-shadow:0 0 8px ${myCols[0]}; vertical-align:middle" title="Друг"></span>`
+    ? `<span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:${myCols[0]}; margin-left:6px; box-shadow:0 0 10px ${myCols[0]}; vertical-align:middle" title="Друг"></span>`
     : '';
 
-  return `<div class="post-card" style="animation-delay:${delay}ms" id="post-${post.id}"
+  const friendCardStyle = frnd ? `border-left: 2px solid ${myCols[0]}44;` : '';
+
+  return `<div class="post-card" style="animation-delay:${delay}ms; ${friendCardStyle}" id="post-${post.id}"
     oncontextmenu="event.preventDefault();showPostMenu('${post.id}',event.clientX,event.clientY)"
     ontouchstart="_lpStart(event,'${post.id}')" ontouchmove="_lpMove()" ontouchend="_lpEnd()">
   <div class="post-head">
@@ -84,7 +86,7 @@ function renderPostCard(post, delay = 0) {
       <div class="post-uname" onclick="${own?`setView('profile')`:`openUserCard('${u.id}')`}">@${esc(u.username)}${friendMark}</div>
       <div class="post-time">${fmtTime(post.ts)}</div>
     </div>
-    <div class="vibe-dot" style="background:${frnd ? myCols[0] : cols[0]}${frnd?';box-shadow:0 0 8px '+myCols[0]:''}; ${frnd ? 'outline: 1px solid ' + myCols[0] : ''}"></div>
+    <div class="vibe-dot" style="background:${frnd ? myCols[0] : cols[0]}; ${frnd ? 'box-shadow: 0 0 10px ' + myCols[0] + '; outline: 1.5px solid ' + myCols[0] : 'opacity:0.6'}"></div>
   </div>
   <div class="post-img-wrap${hasMulti?' carousel-wrap':''}" id="img-${post.id}"
     ondblclick="feedDblTap(event,'${post.id}')"
@@ -178,12 +180,20 @@ function feedImgClick(e, pid) {
   feedTapTimer = setTimeout(()=>{ feedTapTimer=null; expandPost(pid); }, 200);
 }
 function feedDblTap(e, pid) {
-  clearTimeout(feedTapTimer); feedTapTimer=null;
-  const p=POSTS.find(x=>x.id===pid); if(!p) return;
-  if(!p.liked){p.liked=true;p.likes++;refreshLikeBtn(pid);}
-  const wrap=document.getElementById('img-'+pid); if(!wrap) return;
-  const heart=document.createElement('div'); heart.className='like-heart-anim'; heart.textContent='❤️';
-  wrap.appendChild(heart); setTimeout(()=>heart.remove(),700);
+  clearTimeout(feedTapTimer); feedTapTimer = null;
+  const p = POSTS.find(x => x.id === pid); if (!p) return;
+  if (!p.liked) {
+    p.liked = true;
+    p.likes++;
+    refreshLikeBtn(pid);
+  }
+  const wrap = document.getElementById('img-' + pid); if (!wrap) return;
+  const heart = document.createElement('div');
+  heart.className = 'like-heart-anim';
+  heart.style.filter = 'drop-shadow(0 0 15px rgba(255,0,0,0.4))';
+  heart.textContent = '❤️';
+  wrap.appendChild(heart);
+  setTimeout(() => heart.remove(), 800);
 }
 
 // ── Post actions ──────────────────────────────────────────
@@ -237,7 +247,7 @@ function openCmts(pid) {
   openModal('modal-cmt');
 }
 
-// Рендеринг одного коментаря
+// Рендеринг одного коментаря (Module 5)
 // Реалізовано відображення фото у вигляді квадратного прев'ю з відкриттям у загальному лайтбоксі
 function renderCmt(c) {
   const u = getUser(c.userId);
