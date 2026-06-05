@@ -69,6 +69,11 @@ function getUser(id) {
     || { id, username:'unknown', displayName:'Unknown', baseColor:'#333', avatar:null, privacy:'public' };
 }
 
+function isFriend(uid) {
+  if (typeof FOLLOWS === 'undefined' || typeof FOLLOWERS === 'undefined') return false;
+  return FOLLOWS.get(uid)==='following' && FOLLOWERS.get(uid)===true;
+}
+
 function getPostImages(post) {
   if (post.images && post.images.length > 0) return post.images;
   if (post.imgData) return [post.imgData];
@@ -88,8 +93,6 @@ function fmtTime(ts) {
   
   if (d < 86400000) {
     const h = Math.floor(d / 3600000);
-    // Якщо пройшло менше 24 годин, але це вже інша доба — можна було б писати "вчора", 
-    // але для простоти використовуємо години до 24
     return t('time.hour', { n: h });
   }
   
@@ -99,9 +102,9 @@ function fmtTime(ts) {
   
   // Для старих постів показуємо дату
   const date = new Date(ts);
-  return date.toLocaleDateString(APP.lang === 'uk' ? 'uk-UA' : (APP.lang === 'ru' ? 'ru-RU' : 'en-US'), {
-    day: 'numeric', month: 'short'
-  });
+  const curLang = localStorage.getItem('era_lang') || 'en';
+  const locale = curLang === 'uk' ? 'uk-UA' : (curLang === 'ru' ? 'ru-RU' : 'en-US');
+  return date.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
 }
 
 function fmtN(n) {

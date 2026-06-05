@@ -1,6 +1,6 @@
 // js/lightbox.js — Lightbox with physics (Перегляд медіа)
 
-function expandPost(pid, ctx) {
+function expandPost(pid, ctx, scrollToCmt=false) {
   const p = POSTS.find(x=>x.id===pid);
   if (p && !SESSION_VIEWS.has('lb-'+pid)) { SESSION_VIEWS.add('lb-'+pid); p.views=(p.views||0)+1; }
   if (ctx==='profile' && APP.profileUid) {
@@ -182,6 +182,7 @@ function buildLightbox(dir=0) {
 
   lb.addEventListener('click',e=>{if(e.target===lb)closeLightbox();});
   document.body.appendChild(lb);
+  if(scrollToCmt) setTimeout(()=>openCmts(pid),300);
 }
 
 

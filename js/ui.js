@@ -37,12 +37,19 @@ function _closeTopModal(fromPopState = false) {
     return;
   }
   // 3. Фото-редактор (Кропер)
-  const cropModal = document.getElementById('crop-modal');
+  const cropModal = document.getElementById('modal-crop');
   if (cropModal && !cropModal.classList.contains('hidden')) {
     cancelCrop(fromPopState);
     return;
   }
-  // 4. Стандартні Overlay (Створення поста, Коментарі, Профіль)
+  // 4. Пошук мови
+  const lp = document.getElementById('lang-picker');
+  if (lp) {
+    lp.remove();
+    if (!fromPopState && _histDepth > 0) { _histDepth--; history.back(); }
+    return;
+  }
+  // 5. Стандартні Overlay (Створення поста, Коментарі, Профіль)
   const open = [...document.querySelectorAll('.overlay:not(.hidden)')];
   if (open.length) {
     const o = open[open.length - 1];
@@ -94,7 +101,7 @@ function openModal(id) {
   if (sheet) { sheet.style.transform='translateY(100%)'; sheet.style.transition='none'; requestAnimationFrame(()=>{ sheet.style.transition='transform .3s cubic-bezier(.22,1,.36,1)'; sheet.style.transform=''; }); }
   lockScroll(); eraPush(id);
   // Init drag-to-close
-  const pairs = { 'modal-create':['handle-create','sheet-create'], 'modal-cmt':['handle-cmt','sheet-cmt'], 'modal-user':['handle-user','sheet-user'] };
+  const pairs = { 'modal-create':['handle-create','sheet-create'], 'modal-cmt':['handle-cmt','sheet-cmt'], 'modal-user':['handle-user','sheet-user'], 'modal-crop':['handle-crop','sheet-crop'] };
   if (pairs[id]) _makeDraggable(...pairs[id], id);
 }
 
@@ -310,7 +317,7 @@ function showCropTool(src, callback, opts = {}) {
   _cropX = 0; _cropY = 0; _cropScale = 1; _cropRotate = 0;
   _cropOptions = { ratio: 4 / 5, round: false, ...opts };
 
-  const modal = document.getElementById('crop-modal');
+  const modal = document.getElementById('modal-crop');
   modal.classList.remove('hidden');
   lockScroll();
   eraPush('crop');
@@ -401,24 +408,28 @@ function applyCrop() {
 
   ctx.translate(canvas.width/2, canvas.height/2);
   ctx.rotate(_cropRotate * Math.PI / 180);
-  ctx.scale(_cropScale, _cropScale);
 
-  // Calculate relative position
-  const drawW = img.naturalWidth;
-  const drawH = img.naturalHeight;
-  const dx = (_cropX - (sw/2 - (fx + fw/2))) / _cropScale;
-  const dy = (_cropY - (sh/2 - (fy + fh/2))) / _cropScale;
+  // Calculate relative position and draw
+  const drawW = img.naturalWidth * _cropScale;
+  const drawH = img.naturalHeight * _cropScale;
 
-  ctx.drawImage(img, dx - drawW/2, dy - drawH/2, drawW, drawH);
+  // Adjusted offset to match visual center
+  const dx = (_cropX - (sw/2 - (fx + fw/2))) * (800/fw);
+  const dy = (_cropY - (sh/2 - (fy + fh/2))) * (800/fw);
+
+  ctx.drawImage(img, dx - (drawW * (800/fw))/2, dy - (drawH * (800/fw))/2, drawW * (800/fw), drawH * (800/fw));
 
   const result=canvas.toDataURL('image/jpeg',.9);
-  document.getElementById('crop-modal').classList.add('hidden');
+  document.getElementById('modal-crop').classList.add('hidden');
+  unlockScroll();
   if(_cropCallback) _cropCallback(result);
   _cropCallback=null;
+  if(_histDepth > 0) { _histDepth--; history.back(); }
 }
 
 function cancelCrop(fromPopState=false) {
-  document.getElementById('crop-modal').classList.add('hidden');
+  document.getElementById('modal-crop').classList.add('hidden');
+  unlockScroll();
   _cropCallback=null;
   if(!fromPopState && _histDepth > 0) { _histDepth--; history.back(); }
 }

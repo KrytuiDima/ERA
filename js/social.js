@@ -1,9 +1,5 @@
 // js/social.js — Privacy, Friends, Follow Requests, Pins
 
-function isFriend(uid) {
-  return FOLLOWS.get(uid)==='following' && FOLLOWERS.get(uid)===true;
-}
-
 function getFriendIds() {
   const ids=[];
   FOLLOWS.forEach((status,uid)=>{ if(status==='following'&&FOLLOWERS.get(uid)===true) ids.push(uid); });
@@ -35,6 +31,7 @@ async function followUser(uid) {
       showToast(t('social.followedPublic', { user: user.username }));
     }
     if (APP.view === 'explore') renderExplore(document.getElementById('explore-inp')?.value || '');
+    if (APP.view === 'profile' && APP.profileUid === uid) renderProfile(uid);
     renderRightPanel();
   }
 }
@@ -47,6 +44,7 @@ async function unfollowUser(uid) {
   showToast(t('social.unfollowed', { user: user?.username || uid }));
   
   if (APP.view === 'explore') renderExplore(document.getElementById('explore-inp')?.value || '');
+  if (APP.view === 'profile' && APP.profileUid === uid) renderProfile(uid);
   renderRightPanel();
 }
 
@@ -86,7 +84,8 @@ async function toggleFollowUser(uid, btn) {
 
 // ── Approve / Decline ─────────────────────────────────────
 // Схвалення запиту: Дія 1 — Дозволити перегляд
-// Це дає користувачу статус підписника та доступ до контенту
+// Це дає користувачу статус підписника та доступ до контенту.
+// Статус "Друзі" з'явиться лише після взаємної підписки (Дія 2).
 async function approveRequest(fromUid) {
   FOLLOWERS.set(fromUid, true);
   REQUESTS.delete(fromUid);
@@ -106,10 +105,15 @@ async function approveRequest(fromUid) {
   renderNotifBadge();
 }
 
-// Крок 2 — Підписатися у відповідь (стають друзями)
+// Дія 2 — Підписатися у відповідь (стають друзями)
+// Ця дія стає доступною лише після Дії 1
 async function followBack(uid) {
+  const status = getFollowStatus(uid);
+  if (status === 'following') return; // Вже підписані
+
   await followUser(uid);
   if (APP.view === 'notif') renderNotif();
+  if (APP.view === 'profile') renderProfile(uid);
 }
 
 async function declineRequest(fromUid) {
@@ -123,22 +127,40 @@ async function declineRequest(fromUid) {
 function renderFollowRequests() {
   const container=document.getElementById('follow-requests-screen'); if(!container) return;
   const requests=[...REQUESTS.values()];
-  if (!requests.length) {
+  // Також показуємо тих, кого щойно схвалили, але ще не підписалися у відповідь (для Дії 2)
+  const approvedFollowers = [];
+  FOLLOWERS.forEach((val, uid) => {
+    if (val === true && getFollowStatus(uid) !== 'following') {
+      const u = getUser(uid);
+      if (u && !requests.find(r => r.id === uid)) approvedFollowers.push(u);
+    }
+  });
+
+  const all = [...requests, ...approvedFollowers];
+
+  if (!all.length) {
     container.innerHTML=`<div class="empty-state"><div class="empty-ico">✉️</div><div class="empty-txt">${t('profile.noRequests')}</div></div>`;
     return;
   }
-  container.innerHTML=requests.map(user=>`
+  container.innerHTML=all.map(user=>{
+    const isApproved = FOLLOWERS.get(user.id) === true;
+    return `
     <div class="req-item" id="req-${user.id}">
       <div class="req-ava" onclick="openUserCard('${user.id}')">${avatarHTML(user,42)}</div>
       <div class="req-info" onclick="openUserCard('${user.id}')">
         <div class="req-name">@${esc(user.username)}</div>
         <div class="req-bio">${esc(user.displayName||'')}</div>
       </div>
-      <div class="req-actions">
-        <button class="req-approve" onclick="approveRequest('${user.id}');document.getElementById('req-${user.id}').remove()">${t('profile.approve')}</button>
-        <button class="req-decline" onclick="declineRequest('${user.id}');document.getElementById('req-${user.id}').remove()">${t('profile.decline')}</button>
+      <div class="req-actions" id="reqa-${user.id}">
+        ${!isApproved ? `
+          <button class="req-approve" onclick="approveRequest('${user.id}')">${t('profile.approve')}</button>
+          <button class="req-decline" onclick="declineRequest('${user.id}')">${t('profile.decline')}</button>
+        ` : `
+          <button class="req-follow-back" onclick="followBack('${user.id}');document.getElementById('req-${user.id}').remove()">${t('notif.followBack')}</button>
+          <button class="req-decline" onclick="document.getElementById('req-${user.id}').remove()">✕</button>
+        `}
       </div>
-    </div>`).join('');
+    </div>`}).join('');
 }
 
 function getRequestCount() { return REQUESTS.size; }
@@ -198,7 +220,7 @@ function showPinReplaceDialog(newPid) {
           </div>`;
         }).join('')}
       </div>
-      <button onclick="document.getElementById('pin-replace-dialog').remove()" style="width:100%;padding:10px;border-radius:9px;background:var(--s2);border:1px solid var(--b1);color:var(--t2);font-size:13px;font-weight:600;cursor:pointer">Скасувати</button>
+      <button onclick="document.getElementById('pin-replace-dialog').remove()" style="width:100%;padding:10px;border-radius:9px;background:var(--s2);border:1px solid var(--b1);color:var(--t2);font-size:13px;font-weight:600;cursor:pointer">${t('lang.cancel')}</button>
     </div>`;
   lb.addEventListener('click',e=>{if(e.target===lb)lb.remove();});
   document.body.appendChild(lb);

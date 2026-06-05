@@ -87,7 +87,7 @@ window.ERA_LANG.en = {
   notif:{
     title:'Notifications', newCount:'{n} new', empty:'No notifications',
     likedPost:'@{user} liked your post',
-    likedManyPosts:'@{user} and {n} others liked your post',
+    likedManyPosts:'@{user} liked {n} of your posts',
     commented:'@{user} commented: "{text}"',
     followed:'@{user} followed you',
     followedBack:'@{user} followed you back. You\'re now friends! ✨',
@@ -136,7 +136,7 @@ window.ERA_LANG.en = {
   },
   explore:{ placeholder:'Search users…', notFound:'Nobody found' },
   rp:{ recommended:'Suggested', spectrums:'Popular Spectrums', follow:'Follow', following:'Following' },
-  time:{ justNow:'just now', min:'m ago', hour:'h ago', day:'d ago', yesterday: 'yesterday' },
+  time:{ justNow:'just now', min:'{n}m ago', hour:'{n}h ago', day:'{n}d ago', yesterday: 'yesterday' },
   errors:{ fillDesc:'Add a photo or description', unknown:'Something went wrong' },
   lang:{ title:'Мова / Language', cancel:'Cancel' },
 };

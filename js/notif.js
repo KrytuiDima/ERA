@@ -21,13 +21,14 @@ ${grouped.length === 0
 }
 
 function _groupNotifs(notifs) {
-  // Group: same user liked multiple posts → show once
+  // Групування: якщо один юзер лайкнув кілька постів — згортаємо в один рядок (анти-спам)
   const out = [], seen = new Set();
   for (const n of notifs) {
     if (seen.has(n.id)) continue;
     if (n.type==='like') {
       const sameUser = notifs.filter(x=>x.userId===n.userId&&x.type==='like'&&!seen.has(x.id));
       if (sameUser.length>1) {
+        // Беремо останній лайк як базовий, але вказуємо кількість
         const merged = {...sameUser[0], _count:sameUser.length, _ids:sameUser.map(x=>x.id)};
         sameUser.forEach(x=>seen.add(x.id));
         out.push(merged); continue;
@@ -57,7 +58,7 @@ function renderNotifRow(n, idx) {
   switch (n.type) {
     case 'like':
       if (cnt > 1) {
-        text = `<strong>@${u.username}</strong> ${t('notif.likedManyPosts', { n: cnt - 1 })}`;
+        text = `<strong>@${u.username}</strong> ${t('notif.likedManyPosts', { n: cnt })}`;
       } else {
         text = t('notif.likedPost', { user: u.username });
       }
@@ -103,7 +104,7 @@ function renderNotifRow(n, idx) {
   </div>
 
   <!-- Зона B: Текст -> Пост -->
-  <div style="flex:1; min-width:0; cursor:pointer" onclick="${post ? `expandPost('${post.id}')` : ''}">
+  <div style="flex:1; min-width:0; cursor:pointer" onclick="${post ? (n.type==='comment' ? `expandPost('${post.id}',null,true)` : `expandPost('${post.id}')`) : ''}">
     <div style="font-size:13px; color:var(--t1); line-height:1.4">${text}</div>
     <div style="font-size:10px; color:var(--t3); margin-top:3px">${fmtTime(n.ts)}</div>
     ${actionBtns}
