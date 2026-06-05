@@ -38,6 +38,7 @@ function renderProfile(uid) {
   }
 
   // Матриця доступу: чи може користувач бачити контент
+  // Приватний акаунт: контент повністю заблокований для сторонніх (замість стрічки відображається екран із замком).
   const canSee = !isUserPrivate(uid) || own || isF;
   const bannerImg = u.banner ? `<img src="${u.banner}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0">` : '';
 
@@ -53,7 +54,7 @@ function renderProfile(uid) {
   <div class="profile-ava-row">
     <div class="profile-ava" ${own?`onclick="document.getElementById('pava-f').click()" title="${t('profile.changePhoto')}"`:''}>
       <div class="profile-ava-glow" style="background:linear-gradient(135deg,${cols[0]},${cols[1]},${cols[2]});${frnd?'filter:blur(6px);opacity:.9;animation:none':''}"></div>
-      <div class="profile-ava-ring">${avatarHTML(u,84,{friend:false})}</div>
+      <div class="profile-ava-ring">${avatarHTML(u,84,{friend:true})}</div>
       ${own?`<input type="file" id="pava-f" accept="image/*" class="hidden" onchange="changeAva(event)">`:''}
     </div>
     <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
@@ -72,7 +73,7 @@ function renderProfile(uid) {
   <!-- Клікабельне посилання URL -->
   ${u.website?`<div class="profile-link">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-    <a href="${u.website.startsWith('http')?u.website:'https://'+u.website}" target="_blank" rel="noopener noreferrer">${u.website.replace(/^https?:\/\//,'')}</a>
+    <a href="${u.website.startsWith('http')?u.website:'https://'+u.website}" target="_blank" rel="noopener noreferrer">${esc(u.website.replace(/^https?:\/\//,''))}</a>
   </div>`:''}
   
   <div class="profile-stats">
@@ -87,7 +88,7 @@ function renderProfile(uid) {
   
   <div class="vibe-sig">
     <span style="font-family:var(--mono);font-size:9px;color:var(--t3);letter-spacing:.08em">${t('profile.vibe')}</span>
-    <div class="vibe-sig-bar">${makeVibeCode(vibe,u.id,200,18)}</div>
+    <div class="vibe-sig-bar">${makeVibeCode(vibe,u.id,200,18,{friend:true})}</div>
     <span style="font-family:var(--mono);font-size:8px;color:var(--t3)">${vibe}</span>
   </div>
 </div>
@@ -96,8 +97,8 @@ function renderProfile(uid) {
 ${!canSee
   ? `<div class="empty-state" style="margin-top:40px; animation:fadeIn .3s ease">
       <div class="lock-screen-icon" style="font-size:48px; margin-bottom:16px">🔒</div>
-      <div class="empty-txt" style="font-size:14px; font-weight:600">Закритий акаунт</div>
-      <div class="empty-txt" style="font-size:12px; color:var(--t3); margin-top:4px">Підпишись, щоб бачити пости та медіа</div>
+      <div class="empty-txt" style="font-size:14px; font-weight:600">${t('social.privateAcc')}</div>
+      <div class="empty-txt" style="font-size:12px; color:var(--t3); margin-top:4px">${t('social.privateAccMsg')}</div>
     </div>`
   : sorted.length===0
     ? `<div class="empty-state"><div class="empty-ico">📸</div><div class="empty-txt">${own?t('post.emptyPosts'):t('post.emptyOtherPosts')}</div></div>`

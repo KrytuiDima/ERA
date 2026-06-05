@@ -83,6 +83,7 @@ function _refreshStaticUI() {
 // Show language picker overlay
 function showLangPicker() {
   document.getElementById('lang-picker')?.remove();
+  eraPush('lang');
   const currentCode = localStorage.getItem('era_lang') || 'en';
   const el = document.createElement('div');
   el.id = 'lang-picker';
