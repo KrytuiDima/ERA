@@ -133,10 +133,11 @@ window.ERA_LANG.en = {
     title:'Crop photo', cancel:'Cancel', apply:'Use →',
     done:'Done', undo:'Undo', textPrompt:'Text:',
     hint:'Drag photo to reposition · pinch to zoom',
+    zoom:'ZOOM', rotate:'ROTATE',
   },
   explore:{ placeholder:'Search users…', notFound:'Nobody found' },
   rp:{ recommended:'Suggested', spectrums:'Popular Spectrums', follow:'Follow', following:'Following' },
-  time:{ justNow:'just now', min:'m ago', hour:'h ago', day:'d ago', yesterday: 'yesterday' },
+  time:{ justNow:'just now', min:'{n} min ago', hour:'{n} hr ago', day:'{n} days ago', yesterday: 'yesterday' },
   errors:{ fillDesc:'Add a photo or description', unknown:'Something went wrong' },
   lang:{ title:'Мова / Language', cancel:'Cancel' },
 };

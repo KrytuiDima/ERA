@@ -133,10 +133,11 @@ window.ERA_LANG.ru = {
     title:'Обрезать фото', cancel:'Отмена', apply:'Использовать →',
     done:'Готово', undo:'ОТМЕНИТЬ', textPrompt:'Текст:',
     hint:'Перетащи фото · два пальца = масштаб',
+    zoom:'ЗУМ', rotate:'ПОВОРОТ',
   },
   explore:{ placeholder:'Поиск пользователей…', notFound:'Никого не найдено' },
   rp:{ recommended:'Рекомендуемые', spectrums:'Популярные Спектры', follow:'Подписаться', following:'Подписан' },
-  time:{ justNow:'только что', min:'м назад', hour:'ч назад', day:'д назад', yesterday: 'вчера' },
+  time:{ justNow:'только что', min:'{n} мин назад', hour:'{n} ч назад', day:'{n} дн. назад', yesterday: 'вчера' },
   errors:{ fillDesc:'Добавь фото или описание', unknown:'Что-то пошло не так' },
   lang:{ title:'Мова / Language', cancel:'Отмена' },
 };

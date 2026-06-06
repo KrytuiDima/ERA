@@ -99,7 +99,8 @@ function fmtTime(ts) {
   
   // Для старих постів показуємо дату
   const date = new Date(ts);
-  return date.toLocaleDateString(APP.lang === 'uk' ? 'uk-UA' : (APP.lang === 'ru' ? 'ru-RU' : 'en-US'), {
+  const langCode = typeof getCurrentLang === 'function' ? getCurrentLang().code : 'en';
+  return date.toLocaleDateString(langCode === 'uk' ? 'uk-UA' : (langCode === 'ru' ? 'ru-RU' : 'en-US'), {
     day: 'numeric', month: 'short'
   });
 }
