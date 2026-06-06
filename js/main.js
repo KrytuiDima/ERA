@@ -44,6 +44,7 @@ ${filtered.length === 0
       if (frnd) statusTxt = t('profile.friends');
       else if (isF) statusTxt = t('profile.youFollow');
       else if (isReq) statusTxt = t('profile.requested');
+      else if (FOLLOWERS.get(u.id)) statusTxt = t('profile.mutual'); // Following you
 
       return `<div class="rp-user" style="background: var(--s1); border: 1px solid var(--b1); padding: 12px; border-radius:14px; transition: transform .2s" onclick="openUserCard('${u.id}')">
         <!-- Аватар -->
