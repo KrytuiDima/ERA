@@ -133,6 +133,7 @@ window.ERA_LANG.en = {
     title:'Crop photo', cancel:'Cancel', apply:'Use →',
     done:'Done', undo:'Undo', textPrompt:'Text:',
     hint:'Drag photo to reposition · pinch to zoom',
+    zoom:'ZOOM', rotate:'ROTATE',
   },
   explore:{ placeholder:'Search users…', notFound:'Nobody found' },
   rp:{ recommended:'Suggested', spectrums:'Popular Spectrums', follow:'Follow', following:'Following' },

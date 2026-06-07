@@ -391,30 +391,43 @@ function _initCropEvents() {
 }
 
 function applyCrop() {
-  const img=document.getElementById('crop-img'), stage=document.getElementById('crop-stage');
-  const sw=stage.clientWidth, sh=stage.clientHeight;
-  const fw=Math.round(sw*.88), fh=Math.round(fw/_cropOptions.ratio);
-  const fx=(sw-fw)/2, fy=(sh-fh)/2;
-  const canvas=document.createElement('canvas');
-  const OUT=800; canvas.width=OUT; canvas.height=Math.round(OUT/_cropOptions.ratio);
-  const ctx=canvas.getContext('2d');
+  const img = document.getElementById('crop-img'), stage = document.getElementById('crop-stage');
+  const sw = stage.clientWidth, sh = stage.clientHeight;
+  const fw = Math.round(sw * .88), fh = Math.round(fw / _cropOptions.ratio);
+  const fx = (sw - fw) / 2, fy = (sh - fh) / 2;
 
-  ctx.translate(canvas.width/2, canvas.height/2);
+  const canvas = document.createElement('canvas');
+  // Встановлюємо високу роздільну здатність для результату
+  const OUT = 1080;
+  canvas.width = OUT;
+  canvas.height = Math.round(OUT / _cropOptions.ratio);
+  const ctx = canvas.getContext('2d');
+
+  // Малюємо фон (чорний для Amoled стилістики)
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.save();
+  ctx.translate(canvas.width / 2, canvas.height / 2);
   ctx.rotate(_cropRotate * Math.PI / 180);
-  ctx.scale(_cropScale, _cropScale);
 
-  // Calculate relative position
-  const drawW = img.naturalWidth;
-  const drawH = img.naturalHeight;
-  const dx = (_cropX - (sw/2 - (fx + fw/2))) / _cropScale;
-  const dy = (_cropY - (sh/2 - (fy + fh/2))) / _cropScale;
+  // Коефіцієнт масштабування відносно рамки на екрані
+  const scaleFactor = OUT / fw;
+  const s = _cropScale * scaleFactor;
+  ctx.scale(s, s);
 
-  ctx.drawImage(img, dx - drawW/2, dy - drawH/2, drawW, drawH);
+  // Відносне зміщення центру зображення відносно центру рамки
+  const dx = _cropX * (OUT / fw) / s;
+  const dy = _cropY * (OUT / fw) / s;
 
-  const result=canvas.toDataURL('image/jpeg',.9);
+  ctx.drawImage(img, dx - img.naturalWidth / 2, dy - img.naturalHeight / 2, img.naturalWidth, img.naturalHeight);
+  ctx.restore();
+
+  const result = canvas.toDataURL('image/jpeg', 0.9);
   document.getElementById('crop-modal').classList.add('hidden');
-  if(_cropCallback) _cropCallback(result);
-  _cropCallback=null;
+  unlockScroll();
+  if (_cropCallback) _cropCallback(result);
+  _cropCallback = null;
 }
 
 function cancelCrop(fromPopState=false) {

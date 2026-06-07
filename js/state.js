@@ -76,7 +76,7 @@ function getPostImages(post) {
 }
 
 // Форматування відносного часу (щойно, 5 хв тому, вчора тощо)
-// Працює для всіх мов через систему перекладів t()
+// Локалізація працює для UA, EN, RU через словники lang/*.js
 function fmtTime(ts) {
   const d = Date.now() - ts;
   if (d < 60000) return t('time.justNow');
@@ -88,8 +88,7 @@ function fmtTime(ts) {
   
   if (d < 86400000) {
     const h = Math.floor(d / 3600000);
-    // Якщо пройшло менше 24 годин, але це вже інша доба — можна було б писати "вчора", 
-    // але для простоти використовуємо години до 24
+    // Для ERA ми використовуємо "вчора" для подій попередньої доби
     return t('time.hour', { n: h });
   }
   
@@ -97,11 +96,11 @@ function fmtTime(ts) {
   if (days === 1) return t('time.yesterday');
   if (days < 7) return t('time.day', { n: days });
   
-  // Для старих постів показуємо дату
+  // Для старого контенту — формат дати з урахуванням локалі браузера/налаштувань
+  const lang = localStorage.getItem('era_lang') || 'en';
+  const locale = lang === 'uk' ? 'uk-UA' : (lang === 'ru' ? 'ru-RU' : 'en-US');
   const date = new Date(ts);
-  return date.toLocaleDateString(APP.lang === 'uk' ? 'uk-UA' : (APP.lang === 'ru' ? 'ru-RU' : 'en-US'), {
-    day: 'numeric', month: 'short'
-  });
+  return date.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
 }
 
 function fmtN(n) {

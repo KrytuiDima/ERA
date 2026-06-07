@@ -125,6 +125,9 @@ function liveVibePreview() {
 /**
  * Зберігає оновлені дані профілю
  */
+/**
+ * Зберігає оновлені дані профілю (Async для Supabase SDK)
+ */
 async function saveProfile() {
   const dname = document.getElementById('s-dname').value.trim();
   const username = document.getElementById('s-username').value.replace('@', '').trim();
@@ -140,6 +143,7 @@ async function saveProfile() {
   APP.user.bio = bio; 
   APP.user.website = website;
   
+  // Всі операції збереження тепер асинхронні
   await saveUserData();
   
   document.getElementById('sb-dname').textContent = dname;

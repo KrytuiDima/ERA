@@ -178,12 +178,37 @@ function feedImgClick(e, pid) {
   feedTapTimer = setTimeout(()=>{ feedTapTimer=null; expandPost(pid); }, 200);
 }
 function feedDblTap(e, pid) {
-  clearTimeout(feedTapTimer); feedTapTimer=null;
-  const p=POSTS.find(x=>x.id===pid); if(!p) return;
-  if(!p.liked){p.liked=true;p.likes++;refreshLikeBtn(pid);}
-  const wrap=document.getElementById('img-'+pid); if(!wrap) return;
-  const heart=document.createElement('div'); heart.className='like-heart-anim'; heart.textContent='❤️';
-  wrap.appendChild(heart); setTimeout(()=>heart.remove(),700);
+  clearTimeout(feedTapTimer);
+  feedTapTimer = null;
+  const p = POSTS.find(x => x.id === pid);
+  if (!p) return;
+
+  if (!p.liked) {
+    p.liked = true;
+    p.likes++;
+    refreshLikeBtn(pid);
+  }
+
+  const wrap = document.getElementById('img-' + pid);
+  if (!wrap) return;
+
+  // Велика іконка серця (Amoled Black style)
+  const heart = document.createElement('div');
+  heart.className = 'like-heart-anim';
+  heart.style.cssText = `
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    font-size: 80px;
+    z-index: 10;
+    pointer-events: none;
+    filter: drop-shadow(0 0 15px rgba(237,73,86,0.6));
+    animation: heartPopFull 0.8s cubic-bezier(0.17, 0.89, 0.32, 1.49) forwards;
+  `;
+  heart.textContent = '❤️';
+  wrap.appendChild(heart);
+  setTimeout(() => heart.remove(), 850);
 }
 
 // ── Post actions ──────────────────────────────────────────
