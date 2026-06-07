@@ -187,17 +187,30 @@ function buildLightbox(dir=0) {
 
 // Подвійний тап для лайка з анімацією серця
 function lbDoubleTap(pid, imgArea) {
-  const p=POSTS.find(x=>x.id===pid); if(!p) return;
-  if(!p.liked){
-    p.liked=true;
+  const p = POSTS.find(x => x.id === pid);
+  if (!p) return;
+
+  if (!p.liked) {
+    p.liked = true;
     p.likes++;
     refreshLikeBtn(pid);
   }
-  // Велика іконка серця по центру
-  const heart=document.createElement('div');
-  heart.className='like-heart-anim';
-  heart.style.fontSize = '100px';
-  heart.textContent='❤️';
+
+  // Велика іконка серця по центру (Amoled Black style)
+  const heart = document.createElement('div');
+  heart.className = 'like-heart-anim';
+  heart.style.cssText = `
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    font-size: 100px;
+    z-index: 100;
+    pointer-events: none;
+    filter: drop-shadow(0 0 20px rgba(237,73,86,0.6));
+    animation: heartPopFull 0.8s cubic-bezier(0.17, 0.89, 0.32, 1.49) forwards;
+  `;
+  heart.textContent = '❤️';
   imgArea.appendChild(heart);
-  setTimeout(()=>heart.remove(),700);
+  setTimeout(() => heart.remove(), 850);
 }

@@ -52,8 +52,8 @@ function renderProfile(uid) {
 <div class="profile-info">
   <div class="profile-ava-row">
     <div class="profile-ava" ${own?`onclick="document.getElementById('pava-f').click()" title="${t('profile.changePhoto')}"`:''}>
-      <div class="profile-ava-glow" style="background:linear-gradient(135deg,${cols[0]},${cols[1]},${cols[2]});${frnd?'filter:blur(6px);opacity:.9;animation:none':''}"></div>
-      <div class="profile-ava-ring">${avatarHTML(u,84,{friend:false})}</div>
+      <div class="profile-ava-glow" style="background:linear-gradient(135deg,${frnd ? myCols[0] : cols[0]},${frnd ? myCols[1] : cols[1]},${frnd ? myCols[2] : cols[2]});${frnd?'filter:blur(8px);opacity:.9;animation:none':''}"></div>
+      <div class="profile-ava-ring">${avatarHTML(u,84,{friend:true})}</div>
       ${own?`<input type="file" id="pava-f" accept="image/*" class="hidden" onchange="changeAva(event)">`:''}
     </div>
     <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
@@ -67,13 +67,13 @@ function renderProfile(uid) {
   <div class="profile-handle">@${esc(u.username)}</div>
   
   <!-- Біо до 150 символів -->
-  ${u.bio?`<div class="profile-bio">${esc(u.bio).slice(0,150)}</div>`:''}
+  ${u.bio ? `<div class="profile-bio">${esc(u.bio).slice(0, 150)}</div>` : ''}
   
-  <!-- Клікабельне посилання URL -->
-  ${u.website?`<div class="profile-link">
+  <!-- Клікабельне посилання URL (коректне відкриття в новому вікні) -->
+  ${u.website ? `<div class="profile-link">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-    <a href="${u.website.startsWith('http')?u.website:'https://'+u.website}" target="_blank" rel="noopener noreferrer">${u.website.replace(/^https?:\/\//,'')}</a>
-  </div>`:''}
+    <a href="${u.website.startsWith('http') ? u.website : 'https://' + u.website}" target="_blank" rel="noopener noreferrer">${u.website.replace(/^https?:\/\//, '')}</a>
+  </div>` : ''}
   
   <div class="profile-stats">
     <div><div class="ps-n">${followers}</div><div class="ps-l">${t('profile.followers')}</div></div>
@@ -87,7 +87,7 @@ function renderProfile(uid) {
   
   <div class="vibe-sig">
     <span style="font-family:var(--mono);font-size:9px;color:var(--t3);letter-spacing:.08em">${t('profile.vibe')}</span>
-    <div class="vibe-sig-bar">${makeVibeCode(vibe,u.id,200,18)}</div>
+    <div class="vibe-sig-bar">${makeVibeCode(vibe,u.id,200,18,{friend:true})}</div>
     <span style="font-family:var(--mono);font-size:8px;color:var(--t3)">${vibe}</span>
   </div>
 </div>

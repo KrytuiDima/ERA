@@ -133,6 +133,7 @@ window.ERA_LANG.uk = {
     title:'Обрізати фото', cancel:'Скасувати', apply:'Використати →',
     done:'Готово', undo:'СКАСУВАТИ', textPrompt:'Текст:',
     hint:'Перетягни фото · два пальці = масштаб',
+    zoom:'МАСШТАБ', rotate:'ПОВОРОТ',
   },
   explore:{ placeholder:'Пошук юзерів…', notFound:'Нікого не знайдено' },
   rp:{ recommended:'Рекомендовані', spectrums:'Популярні Спектри', follow:'Стежити', following:'Стежу' },

@@ -85,30 +85,37 @@ async function toggleFollowUser(uid, btn) {
 }
 
 // ── Approve / Decline ─────────────────────────────────────
-// Схвалення запиту: Дія 1 — Дозволити перегляд
-// Це дає користувачу статус підписника та доступ до контенту
+// Схвалення запиту: Дія 1 — Дозволити перегляд (Action 1)
+// Це дає користувачу статус підписника та доступ до контенту.
+// Замість видалення запиту, ми міняємо його статус.
 async function approveRequest(fromUid) {
+  // Користувач тепер підписник
   FOLLOWERS.set(fromUid, true);
-  REQUESTS.delete(fromUid);
 
-  // Оновлюємо статус у списку сповіщень
+  // Оновлюємо статус у списку сповіщень для відображення Дії 2
   const n = NOTIFS.find(x => x.userId === fromUid && x.type === 'request');
-  if (n) n._approved = true;
+  if (n) {
+    n._approved = true;
+    n.unread = false; // Позначаємо як прочитане при дії
+  }
 
   // Надсилаємо сповіщення про схвалення
   addNotif({ type: 'approved', fromUid: APP.user.id, toUid: fromUid });
   showToast(t('profile.requestApproved'));
 
-  // Оновлюємо інтерфейс у всіх активних зонах
+  // Оновлюємо інтерфейс
   if (document.getElementById('follow-requests-screen')) renderFollowRequests();
   if (APP.view === 'profile') renderProfile(APP.profileUid);
   if (APP.view === 'notif') renderNotif();
   renderNotifBadge();
 }
 
-// Крок 2 — Підписатися у відповідь (стають друзями)
+// Крок 2 — Підписатися у відповідь (Action 2)
+// Коли підписка стає взаємною, статус автоматично змінюється на "Друзі"
 async function followBack(uid) {
   await followUser(uid);
+  // Після підписки у відповідь запит можна вважати повністю опрацьованим
+  REQUESTS.delete(uid);
   if (APP.view === 'notif') renderNotif();
 }
 
@@ -182,6 +189,7 @@ async function unpinPost(pid) {
 
 function showPinReplaceDialog(newPid) {
   const pinned=getPinnedPosts(APP.user.id);
+  eraPush('pin-replace');
   const lb=document.createElement('div'); lb.id='pin-replace-dialog';
   lb.style.cssText='position:fixed;inset:0;z-index:700;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .18s ease';
   lb.innerHTML=`
@@ -192,15 +200,15 @@ function showPinReplaceDialog(newPid) {
         ${pinned.map(pid=>{
           const p=POSTS.find(x=>x.id===pid),u=getUser(p?.userId||'');
           const bg=postGrad(u),imgs=getPostImages(p);
-          return`<div style="flex:1;aspect-ratio:1;border-radius:10px;overflow:hidden;cursor:pointer;border:2px solid transparent;transition:border .18s" onclick="replacePinWith('${pid}','${newPid}');document.getElementById('pin-replace-dialog').remove()" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='transparent'">
+          return`<div style="flex:1;aspect-ratio:1;border-radius:10px;overflow:hidden;cursor:pointer;border:2px solid transparent;transition:border .18s" onclick="replacePinWith('${pid}','${newPid}');eraBack()" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='transparent'">
             ${imgs&&imgs[0]?`<img src="${imgs[0]}" style="width:100%;height:100%;object-fit:cover">`:
             `<div style="width:100%;height:100%;background:${bg}"></div>`}
           </div>`;
         }).join('')}
       </div>
-      <button onclick="document.getElementById('pin-replace-dialog').remove()" style="width:100%;padding:10px;border-radius:9px;background:var(--s2);border:1px solid var(--b1);color:var(--t2);font-size:13px;font-weight:600;cursor:pointer">Скасувати</button>
+      <button onclick="eraBack()" style="width:100%;padding:10px;border-radius:9px;background:var(--s2);border:1px solid var(--b1);color:var(--t2);font-size:13px;font-weight:600;cursor:pointer">Скасувати</button>
     </div>`;
-  lb.addEventListener('click',e=>{if(e.target===lb)lb.remove();});
+  lb.addEventListener('click',e=>{if(e.target===lb)eraBack();});
   document.body.appendChild(lb);
 }
 

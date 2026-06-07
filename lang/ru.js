@@ -133,6 +133,7 @@ window.ERA_LANG.ru = {
     title:'Обрезать фото', cancel:'Отмена', apply:'Использовать →',
     done:'Готово', undo:'ОТМЕНИТЬ', textPrompt:'Текст:',
     hint:'Перетащи фото · два пальца = масштаб',
+    zoom:'МАСШТАБ', rotate:'ПОВОРОТ',
   },
   explore:{ placeholder:'Поиск пользователей…', notFound:'Никого не найдено' },
   rp:{ recommended:'Рекомендуемые', spectrums:'Популярные Спектры', follow:'Подписаться', following:'Подписан' },
