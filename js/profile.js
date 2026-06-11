@@ -37,11 +37,11 @@ function renderProfile(uid) {
     followBtn = `<button class="profile-follow-btn" id="pfb" onclick="toggleFollowUser('${uid}',this)">${t('profile.follow')}</button>`;
   }
 
-  // Матриця доступу: чи може користувач бачити контент
+  // МАТРИЦЯ ДОСТУПУ: чи може користувач бачити контент
   const canSee = !isUserPrivate(uid) || own || isF;
   const bannerImg = u.banner ? `<img src="${u.banner}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0">` : '';
 
-  // Формування HTML профілю
+  // ФОРМУВАННЯ HTML ПРОФІЛЮ
   document.getElementById('feed-container').innerHTML = `
 <div class="profile-cover" ${own?`onclick="document.getElementById('pban-f').click()" title="${t('profile.changeBanner')}"`:''}>
   <div class="profile-cover-inner">${bannerImg || makeVibeCode(vibe,u.id,600,120)}</div>
@@ -52,8 +52,9 @@ function renderProfile(uid) {
 <div class="profile-info">
   <div class="profile-ava-row">
     <div class="profile-ava" ${own?`onclick="document.getElementById('pava-f').click()" title="${t('profile.changePhoto')}"`:''}>
-      <div class="profile-ava-glow" style="background:linear-gradient(135deg,${cols[0]},${cols[1]},${cols[2]});${frnd?'filter:blur(6px);opacity:.9;animation:none':''}"></div>
-      <div class="profile-ava-ring">${avatarHTML(u,84,{friend:false})}</div>
+      <!-- Глоу-ефект на фоні аватара -->
+      <div class="profile-ava-glow" style="background:linear-gradient(135deg,${cols[0]},${cols[1]},${cols[2]});${frnd?'filter:blur(8px);opacity:.8;animation:avaGlow 3s infinite':''}"></div>
+      <div class="profile-ava-ring">${avatarHTML(u,84,{friend:true})}</div>
       ${own?`<input type="file" id="pava-f" accept="image/*" class="hidden" onchange="changeAva(event)">`:''}
     </div>
     <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
@@ -67,13 +68,18 @@ function renderProfile(uid) {
   <div class="profile-handle">@${esc(u.username)}</div>
   
   <!-- Біо до 150 символів -->
-  ${u.bio?`<div class="profile-bio">${esc(u.bio).slice(0,150)}</div>`:''}
+  ${u.bio ? `<div class="profile-bio">${esc(u.bio).slice(0, 150)}</div>` : ''}
   
   <!-- Клікабельне посилання URL -->
-  ${u.website?`<div class="profile-link">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-    <a href="${u.website.startsWith('http')?u.website:'https://'+u.website}" target="_blank" rel="noopener noreferrer">${u.website.replace(/^https?:\/\//,'')}</a>
-  </div>`:''}
+  ${u.website ? `<div class="profile-link">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+    </svg>
+    <a href="${u.website.startsWith('http') ? u.website : 'https://' + u.website}" target="_blank" rel="noopener noreferrer">
+      ${u.website.replace(/^https?:\/\//, '')}
+    </a>
+  </div>` : ''}
   
   <div class="profile-stats">
     <div><div class="ps-n">${followers}</div><div class="ps-l">${t('profile.followers')}</div></div>
@@ -87,7 +93,7 @@ function renderProfile(uid) {
   
   <div class="vibe-sig">
     <span style="font-family:var(--mono);font-size:9px;color:var(--t3);letter-spacing:.08em">${t('profile.vibe')}</span>
-    <div class="vibe-sig-bar">${makeVibeCode(vibe,u.id,200,18)}</div>
+    <div class="vibe-sig-bar">${makeVibeCode(vibe,u.id,200,18,{friend:true})}</div>
     <span style="font-family:var(--mono);font-size:8px;color:var(--t3)">${vibe}</span>
   </div>
 </div>
@@ -96,8 +102,9 @@ function renderProfile(uid) {
 ${!canSee
   ? `<div class="empty-state" style="margin-top:40px; animation:fadeIn .3s ease">
       <div class="lock-screen-icon" style="font-size:48px; margin-bottom:16px">🔒</div>
-      <div class="empty-txt" style="font-size:14px; font-weight:600">Закритий акаунт</div>
-      <div class="empty-txt" style="font-size:12px; color:var(--t3); margin-top:4px">Підпишись, щоб бачити пости та медіа</div>
+      <div class="empty-txt" style="font-size:14px; font-weight:600">${t('social.privateAcc')}</div>
+      <div class="empty-txt" style="font-size:12px; color:var(--t3); margin-top:4px">${t('social.privateAccMsg')}</div>
+      ${!own && !isReq ? `<button class="profile-follow-btn" style="margin-top:20px" onclick="toggleFollowUser('${uid}',this)">${t('profile.follow')}</button>` : ''}
     </div>`
   : sorted.length===0
     ? `<div class="empty-state"><div class="empty-ico">📸</div><div class="empty-txt">${own?t('post.emptyPosts'):t('post.emptyOtherPosts')}</div></div>`
@@ -118,17 +125,24 @@ function renderFullProfile(uid) {
   renderProfile(uid);
 }
 
-// Зміна аватара з використанням кропера (1:1)
+/**
+ * Зміна аватара користувача.
+ * Використовує професійний кропер 1:1.
+ */
 async function changeAva(e) {
-  const f=e.target.files[0]; if(!f) return;
-  const r=new FileReader();
-  r.onload=ev=>{
-    // Викликаємо кропер з пропорціями 1:1
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    // Відкриваємо кропер з пропорціями 1:1 та круглою рамкою
     showCropTool(ev.target.result, async res => {
       APP.user.avatar = res; 
       await saveUserData();
-      document.getElementById('sb-ava').innerHTML = avatarHTML(APP.user,34);
-      document.getElementById('bn-ava').innerHTML = avatarHTML(APP.user,24);
+
+      // Оновлюємо аватар у сайдбарі та навігації
+      document.getElementById('sb-ava').innerHTML = avatarHTML(APP.user, 34);
+      document.getElementById('bn-ava').innerHTML = avatarHTML(APP.user, 24);
+
+      // Перерендерюємо профіль
       renderProfile(APP.user.id); 
       showToast(t('profile.photoUpdated'));
     }, { ratio: 1, round: true });
@@ -136,12 +150,15 @@ async function changeAva(e) {
   r.readAsDataURL(f);
 }
 
-// Зміна банера профілю з використанням кропера (16:9)
+/**
+ * Зміна банера профілю.
+ * Використовує кропер з пропорціями 16:9 для горизонтального фону.
+ */
 async function changeBanner(e) {
-  const f=e.target.files[0]; if(!f) return;
-  const r=new FileReader();
-  r.onload=ev=>{
-    // Викликаємо кропер з пропорціями 16:9
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    // Банери в ERA мають формат 16:9 (під Vibe Code)
     showCropTool(ev.target.result, async res => {
       APP.user.banner = res; 
       await saveUserData();

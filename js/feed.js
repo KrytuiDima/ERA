@@ -8,42 +8,78 @@ function setFeed(tab) {
   renderFeed();
 }
 
-function getFeedPosts() {
-  const all = [...POSTS].sort((a,b) => b.ts-a.ts);
+/**
+ * Отримання списку постів для поточної вкладки (Following / For You).
+ * Всі запити асинхронні для майбутнього Supabase SDK.
+ */
+async function getFeedPosts() {
+  // В майбутньому: await supabase.from('posts').select(...)
+  const all = [...POSTS].sort((a, b) => b.ts - a.ts);
+
   if (APP.feed === 'following') {
-    const fids = [...FOLLOWS.entries()].filter(([,s])=>s==='following').map(([id])=>id);
+    const fids = [...FOLLOWS.entries()].filter(([, s]) => s === 'following').map(([id]) => id);
     return all.filter(p => fids.includes(p.userId));
   }
-  // For You: mood-aware + friends boost
+
+  // Алгоритм "Для Тебе": враховує настрій (mood) та пріоритет друзів
   if (APP.mood) {
-    const mc = MOODS.find(m=>m.id===APP.mood)?.color||'#888';
+    const mc = MOODS.find(m => m.id === APP.mood)?.color || '#888';
     const mH = hexToHsl(mc).h;
+
     return all.map(p => {
-      const u   = getUser(p.userId);
-      const uH  = hexToHsl(u.baseColor).h;
-      const diff= Math.min(Math.abs(mH-uH),360-Math.abs(mH-uH));
-      const friendBoost = isFriend(p.userId) ? 0.2 : 0;
-      const score = (1-diff/180)*.45 + Math.log10(p.likes+1)/4*.25
-                  + Math.max(0,1-(Date.now()-p.ts)/(7*86400000))*.2
-                  + friendBoost + srand(hashStr(p.id+(APP.mood||'')))*.1;
-      return {...p, _score:score};
-    }).sort((a,b) => b._score-a._score);
+      const u = getUser(p.userId);
+      const uH = hexToHsl(u.baseColor).h;
+      const diff = Math.min(Math.abs(mH - uH), 360 - Math.abs(mH - uH));
+
+      // БУСТ ДЛЯ ДРУЗІВ: контент від друзів піднімається вище
+      const friendBoost = isFriend(p.userId) ? 0.25 : 0;
+
+      const score = (1 - diff / 180) * .45 // Схожість за кольором
+                  + Math.log10(p.likes + 1) / 4 * .20 // Популярність
+                  + Math.max(0, 1 - (Date.now() - p.ts) / (7 * 86400000)) * .15 // Свіжість
+                  + friendBoost
+                  + srand(hashStr(p.id + (APP.mood || ''))) * .05; // Рандомізація
+
+      return { ...p, _score: score };
+    }).sort((a, b) => b._score - a._score);
   }
+
   return all;
 }
 
-function renderFeed() {
-  const posts = getFeedPosts();
+/**
+ * Рендеринг стрічки постів.
+ * Використовує асинхронне отримання даних для сумісності з Supabase.
+ */
+async function renderFeed() {
+  const posts = await getFeedPosts();
   const c = document.getElementById('feed-container');
+
   if (!posts.length) {
-    c.innerHTML = `<div class="empty-state"><div class="empty-ico">${APP.feed==='following'?'👥':'✨'}</div><div class="empty-txt">${t(APP.feed==='following'?'feed.emptyFollowing':'feed.emptyForYou')}</div></div>`;
+    c.innerHTML = `<div class="empty-state">
+      <div class="empty-ico">${APP.feed === 'following' ? '👥' : '✨'}</div>
+      <div class="empty-txt">${t(APP.feed === 'following' ? 'feed.emptyFollowing' : 'feed.emptyForYou')}</div>
+    </div>`;
     return;
   }
-  // Track views
-  posts.forEach(p => { if(!SESSION_VIEWS.has(p.id)){SESSION_VIEWS.add(p.id);p.views=(p.views||0)+1;} });
-  c.innerHTML = posts.map((p,i) => renderPostCard(p,i*28)).join('');
+
+  // Облік переглядів
+  posts.forEach(p => {
+    if (!SESSION_VIEWS.has(p.id)) {
+      SESSION_VIEWS.add(p.id);
+      p.views = (p.views || 0) + 1;
+    }
+  });
+
+  // Масовий рендер карток
+  c.innerHTML = posts.map((p, i) => renderPostCard(p, i * 28)).join('');
+
+  // Ініціалізація каруселей після рендеру
   setTimeout(() => {
-    posts.forEach(p => { const imgs=getPostImages(p); if(imgs&&imgs.length>1) initCarousel(p.id,imgs.length); });
+    posts.forEach(p => {
+      const imgs = getPostImages(p);
+      if (imgs && imgs.length > 1) initCarousel(p.id, imgs.length);
+    });
   }, 0);
 }
 
@@ -68,23 +104,33 @@ function renderPostCard(post, delay = 0) {
     imgContent = `<div class="carousel-track" id="ct-${post.id}">${imgs.map(i => `<div class="carousel-slide"><img src="${i}" alt="" draggable="false"></div>`).join('')}</div><div class="carousel-dots" id="cd-${post.id}">${imgs.map((_, i) => `<div class="c-dot${i === 0 ? ' on' : ''}"></div>`).join('')}</div><div class="carousel-ctr" id="cc-${post.id}">1/${imgs.length}</div>`;
   }
 
-  // Акцент для друзів: неон кольору ВЛАСНОГО вайбу
+  // АКЦЕНТ ДЛЯ ДРУЗІВ: Використовуємо колір власного вайбу авторизованого юзера
   const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff' });
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
+
+  // Якщо це друг, нікнейм отримує спеціальний маркер та неонову підсвітку
   const friendMark = frnd
-    ? `<span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${myCols[0]}; margin-left:6px; box-shadow:0 0 8px ${myCols[0]}; vertical-align:middle" title="Друг"></span>`
+    ? `<span class="friend-badge" style="background:${myCols[0]}; box-shadow:0 0 10px ${myCols[0]}"></span>`
     : '';
+
+  const nameStyle = frnd ? `style="color:${myCols[0]}; text-shadow: 0 0 8px ${myCols[0]}44"` : '';
 
   return `<div class="post-card" style="animation-delay:${delay}ms" id="post-${post.id}"
     oncontextmenu="event.preventDefault();showPostMenu('${post.id}',event.clientX,event.clientY)"
     ontouchstart="_lpStart(event,'${post.id}')" ontouchmove="_lpMove()" ontouchend="_lpEnd()">
   <div class="post-head">
+    <!-- Аватар з неоновим контуром для друзів -->
     <div class="post-ava" onclick="${own?`setView('profile')`:`openUserCard('${u.id}')`}">${avatarHTML(u,38,{friend:true})}</div>
+
     <div class="post-meta">
-      <div class="post-uname" onclick="${own?`setView('profile')`:`openUserCard('${u.id}')`}">@${esc(u.username)}${friendMark}</div>
+      <div class="post-uname" ${nameStyle} onclick="${own?`setView('profile')`:`openUserCard('${u.id}')`}">
+        @${esc(u.username)}${friendMark}
+      </div>
       <div class="post-time">${fmtTime(post.ts)}</div>
     </div>
-    <div class="vibe-dot" style="background:${frnd ? myCols[0] : cols[0]}${frnd?';box-shadow:0 0 8px '+myCols[0]:''}; ${frnd ? 'outline: 1px solid ' + myCols[0] : ''}"></div>
+
+    <!-- Vibe Dot: для друзів він також підсвічується вайбом поточного юзера -->
+    <div class="vibe-dot" style="background:${frnd ? myCols[0] : cols[0]}; ${frnd ? 'box-shadow:0 0 10px '+myCols[0]+'; outline: 1px solid '+myCols[0] : ''}"></div>
   </div>
   <div class="post-img-wrap${hasMulti?' carousel-wrap':''}" id="img-${post.id}"
     ondblclick="feedDblTap(event,'${post.id}')"
@@ -170,20 +216,51 @@ function refreshLikeBtn(pid) {
   if(lbLb){lbLb.className='like-btn'+(p.liked?' liked':'');lbLb.querySelector('svg')?.setAttribute('fill',p.liked?'currentColor':'none');const cnt=lbLb.querySelector('.like-cnt');if(cnt)cnt.textContent=fmtN(p.likes)||0;}
 }
 
-// ── Image tap / double-tap ────────────────────────────────
+// ── ЖЕСТИ ТА ВЗАЄМОДІЯ (GESTURES) ────────────────────────────────────
+
+/**
+ * Обробка кліку/тапу по фото. Розрізняє одинарний тап (відкриття) та подвійний (лайк).
+ */
 let feedTapTimer = null;
 function feedImgClick(e, pid) {
-  const st = carousels.get(pid); if(st&&e._wasDrag) return;
-  if (feedTapTimer) { clearTimeout(feedTapTimer); feedTapTimer=null; feedDblTap(e,pid); return; }
-  feedTapTimer = setTimeout(()=>{ feedTapTimer=null; expandPost(pid); }, 200);
+  const st = carousels.get(pid); if(st && e._wasDrag) return;
+  if (feedTapTimer) {
+    // Якщо це другий тап протягом 200мс — ставимо лайк
+    clearTimeout(feedTapTimer);
+    feedTapTimer = null;
+    feedDblTap(e, pid);
+    return;
+  }
+  // Чекаємо на можливий другий тап
+  feedTapTimer = setTimeout(() => {
+    feedTapTimer = null;
+    expandPost(pid);
+  }, 200);
 }
+
+/**
+ * Подвійний тап для лайка з анімацією серця по центру.
+ */
 function feedDblTap(e, pid) {
-  clearTimeout(feedTapTimer); feedTapTimer=null;
-  const p=POSTS.find(x=>x.id===pid); if(!p) return;
-  if(!p.liked){p.liked=true;p.likes++;refreshLikeBtn(pid);}
-  const wrap=document.getElementById('img-'+pid); if(!wrap) return;
-  const heart=document.createElement('div'); heart.className='like-heart-anim'; heart.textContent='❤️';
-  wrap.appendChild(heart); setTimeout(()=>heart.remove(),700);
+  clearTimeout(feedTapTimer);
+  feedTapTimer = null;
+  const p = POSTS.find(x => x.id === pid); if (!p) return;
+
+  if (!p.liked) {
+    p.liked = true;
+    p.likes++;
+    refreshLikeBtn(pid);
+  }
+
+  // Велика іконка серця з плавною анімацією (див. css .like-heart-anim)
+  const wrap = document.getElementById('img-' + pid);
+  if (wrap) {
+    const heart = document.createElement('div');
+    heart.className = 'like-heart-anim';
+    heart.textContent = '❤️';
+    wrap.appendChild(heart);
+    setTimeout(() => heart.remove(), 700);
+  }
 }
 
 // ── Post actions ──────────────────────────────────────────
@@ -237,27 +314,38 @@ function openCmts(pid) {
   openModal('modal-cmt');
 }
 
-// Рендеринг одного коментаря
-// Реалізовано відображення фото у вигляді квадратного прев'ю з відкриттям у загальному лайтбоксі
+/**
+ * Рендеринг одного коментаря.
+ * Підтримує відображення медіа (фото) у вигляді квадратного прев'ю.
+ */
 function renderCmt(c) {
   const u = getUser(c.userId);
   const frnd = isFriend(c.userId);
   const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff' });
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
 
+  // Акцент для друзів у коментарях (маркер кольору вайбу юзера)
+  const friendMark = frnd
+    ? `<span class="friend-badge cmt" style="background:${myCols[0]}; box-shadow:0 0 8px ${myCols[0]}"></span>`
+    : '';
+  const nameStyle = frnd ? `style="color:${myCols[0]}; font-weight:700"` : '';
+
   return `<div class="cmt-item">
-  <div class="cmt-ava" style="cursor:pointer" onclick="openUserCard('${u.id}')">${avatarHTML(u, 30, { friend: true })}</div>
+  <div class="cmt-ava" style="cursor:pointer" onclick="openUserCard('${u.id}')">
+    ${avatarHTML(u, 30, { friend: true })}
+  </div>
   <div class="cmt-bwrap">
-    <div>
-      <span class="cmt-uname" style="cursor:pointer" onclick="openUserCard('${u.id}')">@${esc(u.username)}</span>
-      ${frnd ? `<span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:${myCols[0]}; margin-left:5px; vertical-align:middle; box-shadow:0 0 5px ${myCols[0]}"></span>` : ''}
+    <div class="cmt-head">
+      <span class="cmt-uname" ${nameStyle} style="cursor:pointer" onclick="openUserCard('${u.id}')">@${esc(u.username)}</span>
+      ${friendMark}
       <span class="cmt-utime">${fmtTime(c.ts)}</span>
     </div>
     ${c.text ? `<div class="cmt-text">${esc(c.text)}</div>` : ''}
     
-    <!-- Фото в коментарі: маленьке квадратне прев'ю -->
-    ${c.photo ? `<div class="cmt-ph-wrap" onclick="openPhotoLightbox('${c.photo}')">
-      <img class="cmt-photo-img" src="${c.photo}" alt="">
+    <!-- МЕДІА В КОМЕНТАРЯХ: мале квадратне прев'ю, що відкривається у Лайтбоксі -->
+    ${c.photo ? `
+    <div class="cmt-ph-wrap" onclick="openPhotoLightbox('${c.photo}')">
+      <img class="cmt-photo-img" src="${c.photo}" alt="attachment">
     </div>` : ''}
   </div></div>`;
 }

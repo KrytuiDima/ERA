@@ -1,103 +1,95 @@
-// js/privacy.js — Privacy Manager and Access Matrix
+// js/privacy.js — Менеджер приватності та Матриця доступу (Privacy & Security)
+// Цей модуль відповідає за те, хто і що може бачити в мережі ERA
 
 const PrivacyManager = {
 
   /**
-   * Determine the relationship status between two users.
+   * Визначає статус відносин між двома користувачами
+   * Використовується для побудови Матриці доступу
    */
   async getRelationship(viewerId, ownerId) {
     if (!viewerId) return 'NONE';
     if (viewerId === ownerId) return 'OWNER';
 
-    const { data: perms } = await supabase.from('permissions')
-      .select('*')
-      .match({ user_id: ownerId, target_id: viewerId })
-      .maybeSingle();
+    // В майбутньому тут буде запит до Supabase таблиці 'permissions'
+    // Зараз імітуємо через існуючу логіку соціальних зв'язків
+    const isF = getFollowStatus(ownerId) === 'following';
+    const isFollowerOfMe = FOLLOWERS.get(viewerId) === true;
 
-    if (perms?.is_blocked) return 'BLOCKED';
-    if (perms?.is_close_friend) return 'CLOSE_FRIEND';
-    if (perms?.is_follower) return 'FOLLOWER';
+    // Перевірка на "Друзів" (взаємна підписка)
+    if (isF && isFollowerOfMe) return 'FRIEND';
+    if (isF) return 'FOLLOWING';
+    if (isFollowerOfMe) return 'FOLLOWER';
 
-    const { data: req } = await supabase.from('notifications')
-      .select('*')
-      .match({ actor_id: viewerId, recipient_id: ownerId, type: 'FOLLOW_REQUEST' })
-      .maybeSingle();
-
-    if (req) return 'REQUESTED';
+    const isReq = getFollowStatus(ownerId) === 'requested';
+    if (isReq) return 'REQUESTED';
 
     return 'NONE';
   },
 
   /**
-   * Universal check for viewing content.
+   * Універсальна перевірка: чи може користувач бачити контент іншого користувача
    */
   async canUserViewContent(viewerId, ownerId, contentType = 'posts') {
-    const owner = await getUser(ownerId);
+    const owner = getUser(ownerId);
     const rel = await this.getRelationship(viewerId, ownerId);
 
+    // Власник завжди бачить свій контент
     if (rel === 'OWNER') return true;
     if (rel === 'BLOCKED') return false;
 
-    const privacy = owner.privacy_state || 'PUBLIC';
+    const privacy = owner.privacy || 'public';
 
-    if (privacy === 'PUBLIC') return true;
-    if (privacy === 'PRIVATE') return rel === 'FOLLOWER' || rel === 'CLOSE_FRIEND';
+    // Публічні акаунти бачать усі
+    if (privacy === 'public') return true;
+
+    // Приватні акаунти бачать лише схвалені підписники (Action 1) або друзі
+    if (privacy === 'private') {
+      return rel === 'FOLLOWER' || rel === 'FRIEND';
+    }
 
     return false;
   },
 
   /**
-   * Checks if user can comment on a target's content.
+   * Перевірка: чи може користувач залишати коментарі
    */
   async canComment(viewerId, ownerId) {
     const rel = await this.getRelationship(viewerId, ownerId);
-    return !['BLOCKED', 'NONE', 'REQUESTED'].includes(rel);
+    // Коментувати можуть лише ті, хто має доступ до перегляду (не заблоковані і не сторонні для приватних)
+    const canView = await this.canUserViewContent(viewerId, ownerId);
+    return canView && !['BLOCKED', 'NONE', 'REQUESTED'].includes(rel);
   },
-
-  async canDM(viewerId, ownerId) {
-    const rel = await this.getRelationship(viewerId, ownerId);
-    return ['OWNER', 'CLOSE_FRIEND', 'FOLLOWER'].includes(rel);
-  },
-
-  // ── Privacy State Transitions ──────────────────────────────
 
   /**
-   * Elevate privacy or handle transitions like switching to Public.
+   * Оновлення статусу приватності акаунта (Public/Private)
    */
   async updatePrivacyState(userId, newState) {
-    const user = await getUser(userId);
-    const oldState = user.privacy_state;
+    // newState: 'public' | 'private'
+    if (!APP.user || APP.user.id !== userId) return;
 
-    const { error } = await supabase.from('profiles')
-      .update({ privacy_state: newState })
-      .eq('id', userId);
+    APP.user.privacy = newState;
+    if (!APP.user.settings) APP.user.settings = {};
+    APP.user.settings.private = (newState === 'private');
 
-    if (error) return;
+    await saveUserData();
 
-    if (newState === 'PUBLIC' && oldState === 'PRIVATE') {
-      // Delete all pending follow requests as they are no longer needed
-      await supabase.from('notifications')
-        .delete()
-        .match({ recipient_id: userId, type: 'FOLLOW_REQUEST' });
+    // Якщо акаунт стає публічним — всі запити на підписку можна автоматично схвалити
+    if (newState === 'public') {
+      // Логіка для автоматичного схвалення або видалення запитів
     }
   },
 
   /**
-   * Block a user: removes all permissions and followership.
+   * Блокування користувача (повне розірвання зв'язків)
    */
   async blockUser(userId, targetId) {
-    // Remove existing permissions both ways
-    await supabase.from('permissions').delete().or(`and(user_id.eq.${userId},target_id.eq.${targetId}),and(user_id.eq.${targetId},target_id.eq.${userId})`);
+    // В майбутньому — запит до Supabase для видалення пермішенів
+    FOLLOWS.delete(targetId);
+    FOLLOWERS.delete(targetId);
+    await saveFollowsToStorage();
 
-    // Add block entry
-    await supabase.from('permissions').insert([{
-      user_id: userId,
-      target_id: targetId,
-      is_blocked: true,
-      is_follower: false
-    }]);
-
-    // Also delete requests
-    await supabase.from('notifications').delete().or(`and(actor_id.eq.${userId},recipient_id.eq.${targetId}),and(actor_id.eq.${targetId},recipient_id.eq.${userId})`).eq('type', 'FOLLOW_REQUEST');
+    // Повідомляємо систему
+    showToast('Користувача заблоковано');
   }
 };
