@@ -56,11 +56,16 @@ window.addEventListener('popstate', e => {
   _closeTopModal(true);
 });
 
-// ── Sheet animation helpers ───────────────────────────────
-// Плавна анімація виїзду шторки вниз
+// ── ПОКРАЩЕННЯ MOBILE UX ТА ЖЕСТИ (MOBILE UX & GESTURES) ─────────────
+
+/**
+ * Плавна анімація виїзду шторки вниз.
+ * Інтегрована з History API.
+ */
 function _animateSheetOut(overlayEl, cb, fromPopState = false) {
   const sheet = overlayEl.querySelector('.sheet');
   if (sheet) {
+    // Естетична анімація закриття
     sheet.style.transition = 'transform .28s cubic-bezier(.22,1,.36,1)';
     sheet.style.transform = 'translateY(105%)';
     setTimeout(() => {
@@ -69,7 +74,7 @@ function _animateSheetOut(overlayEl, cb, fromPopState = false) {
       sheet.style.transition = '';
       unlockScroll();
       if (cb) cb();
-      // Синхронізуємо історію, якщо закриття ініційовано кодом, а не кнопкою "Назад"
+      // Синхронізація з історією браузера
       if (!fromPopState && _histDepth > 0) {
         _histDepth--;
         history.back();
@@ -105,8 +110,10 @@ function closeModal(id) {
 
 function ovClose(e, id) { if(e.target===document.getElementById(id)) closeModal(id); }
 
-// ── Sheet drag-to-close (Фізика шторки) ───────────────────
-// Дозволяє закривати модальні вікна свайпом вниз за верхню частину (Handle bar)
+/**
+ * Реалізація жесту "drag-to-close" для шторок (Bottom Sheets).
+ * Дозволяє плавно закривати вікна свайпом вниз.
+ */
 function _makeDraggable(handleId, sheetId, overlayId) {
   const handle = document.getElementById(handleId);
   const sheet = document.getElementById(sheetId);
@@ -128,7 +135,7 @@ function _makeDraggable(handleId, sheetId, overlayId) {
     const y = e.touches ? e.touches[0].clientY : e.clientY;
     const dy = y - sy;
     if (dy > 0) {
-      // Фізика опору: чим далі тягнемо, тим повільніше рухається (опціонально)
+      // Фізика руху за пальцем
       sheet.style.transform = `translateY(${dy}px)`;
       if (e.cancelable) e.preventDefault();
     }
@@ -140,7 +147,7 @@ function _makeDraggable(handleId, sheetId, overlayId) {
     const y = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
     const dy = y - sy;
     const dt = Date.now() - startTime;
-    const vel = dy / dt; // Швидкість свайпу
+    const vel = dy / dt; // Швидкість свайпу для визначення різкого жесту
 
     sheet.style.transition = 'transform .3s cubic-bezier(.22,1,.36,1)';
     
@@ -152,6 +159,7 @@ function _makeDraggable(handleId, sheetId, overlayId) {
     }
   };
 
+  // Реєстрація подій для Touch та Mouse
   targets.forEach(el => {
     el.addEventListener('touchstart', onStart, { passive: true });
     el.addEventListener('mousedown', onStart);
@@ -170,7 +178,12 @@ function showToast(msg, dur=2800) {
   setTimeout(()=>{ el.classList.add('out'); setTimeout(()=>el.remove(),250); }, dur);
 }
 
-// ── Feed carousel ─────────────────────────────────────────
+// ── МЕДІА-КАРУСЕЛЬ (MEDIA CAROUSEL) ───────────────────────────────────
+
+/**
+ * Ініціалізація каруселі для постів з декількома фото.
+ * Реалізує ефект "пружини" (rubber-band) та синхронізацію індикаторів.
+ */
 function initCarousel(pid, total, isLb=false) {
   if (total<=1) return;
   const state = {idx:0, total, isLb};
@@ -197,11 +210,12 @@ function initCarousel(pid, total, isLb=false) {
     dx = x - sx;
     const dy = y - sy;
 
+    // Горизонтальний свайп
     if(Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 5) {
       const st = isLb ? lbCarState : carousels.get(pid);
       let tx = -st.idx * wrap.clientWidth + dx;
 
-      // Rubber-band effect
+      // Rubber-band effect: опір при намаганні проскролити далі крайнього фото
       if((st.idx === 0 && dx > 0) || (st.idx === st.total-1 && dx < 0)) {
         tx = -st.idx * wrap.clientWidth + dx * 0.3;
       }
@@ -298,19 +312,52 @@ function showPostMenu(pid,x,y) {
   document.body.appendChild(menu);
 }
 
-// ── Crop tool (Медіа-редактор) ─────────────────────────────
-// Професійний фронтенд-кропер для постів, аватарок та банерів
+// ── СТУДІЯ РЕДАГУВАННЯ ТА КРОПЕР (MEDIA STUDIO & CROPPER) ───────────
+// Реалізує професійну обрізку фото на фронтенді (Canvas API)
+
 let _cropCallback = null, _cropX = 0, _cropY = 0, _cropScale = 1, _cropRotate = 0;
 let _cropDragSX = 0, _cropDragSY = 0, _cropDragOX = 0, _cropDragOY = 0, _cropDragging = false;
 let _cropPinchDist = 0, _cropOptions = {};
 
-// Відкриття редактора фото (пропорції 4:5, 1:1 або 16:9)
+/**
+ * Відкриття інструменту обрізки.
+ * Підтримує фіксовані пропорції: 4:5 (пости), 1:1 (аватари), 16:9 (банери).
+ */
 function showCropTool(src, callback, opts = {}) {
   _cropCallback = callback;
   _cropX = 0; _cropY = 0; _cropScale = 1; _cropRotate = 0;
   _cropOptions = { ratio: 4 / 5, round: false, ...opts };
 
-  const modal = document.getElementById('crop-modal');
+  // Використовуємо існуючий або створюємо DOM елемент модалки
+  let modal = document.getElementById('crop-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'crop-modal';
+    modal.className = 'hidden';
+    modal.innerHTML = `
+      <div class="crop-hdr">
+        <button class="crop-cancel" onclick="cancelCrop()">${t('crop.cancel')}</button>
+        <div class="crop-title">${t('crop.title')}</div>
+        <button class="crop-apply" onclick="applyCrop()">${t('crop.apply')}</button>
+      </div>
+      <div class="crop-stage" id="crop-stage">
+        <img id="crop-img" src="" alt="">
+        <div class="crop-mask" id="crop-mask"></div>
+        <div class="crop-hint">${t('crop.hint')}</div>
+      </div>
+      <div class="crop-controls">
+        <div class="crop-control-row">
+          <span>ZOOM</span>
+          <input type="range" class="crop-slider" id="crop-zoom" min="0.1" max="5" step="0.01" value="1">
+        </div>
+        <div class="crop-control-row">
+          <span>ROTATE</span>
+          <input type="range" class="crop-slider" id="crop-rotate" min="-180" max="180" step="1" value="0">
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+
   modal.classList.remove('hidden');
   lockScroll();
   eraPush('crop');

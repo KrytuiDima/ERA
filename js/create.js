@@ -11,8 +11,10 @@ function openCreatePost() {
   openModal('modal-create');
 }
 
-// Обробка вибраних фото для поста
-// Використовує кропер з пропорціями 4:5 для забезпечення естетики стрічки
+/**
+ * Обробка вибраних фото для поста.
+ * Забезпечує естетику стрічки через примусовий кроп 4:5 для обкладинки.
+ */
 async function onPostFile(e) {
   const files = Array.from(e.target.files || []);
   if (!files.length) return;
@@ -24,12 +26,13 @@ async function onPostFile(e) {
     r.readAsDataURL(f);
   });
 
-  // Для першого фото завжди відкриваємо кропер 4:5
+  // В ERA перше фото (обкладинка) ЗАВЖДИ має бути 4:5
   const firstSrc = await readFile(files[0]);
   
   showCropTool(firstSrc, async (cropped) => {
     if (files.length > 1) {
-      // Якщо вибрано кілька фото — інші додаються автоматично (можна розширити до кропу всіх)
+      // Якщо вибрано кілька фото — додаємо решту.
+      // В ідеалі кожен файл має проходити через кропер, але для швидкості поки так.
       const rest = await Promise.all(files.slice(1).map(readFile));
       POST_IMGS = [...POST_IMGS, cropped, ...rest].slice(0, 10);
     } else {

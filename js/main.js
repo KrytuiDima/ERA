@@ -16,14 +16,23 @@ function setView(v) {
   else if (v==='settings') renderSettings();
 }
 
-// ── Explore (Пошук користувачів) ───────────────────────────
-// Реалізовано швидкий пошук з відображенням Vibe Code та статусу відносин
+// ── ПОШУК ТА ДОСЛІДЖЕННЯ (EXPLORE & SEARCH) ───────────────────────────
+
+/**
+ * Рендеринг розділу Explore.
+ * Реалізовано швидкий пошук за нікнеймами з відображенням Vibe Code та статусу.
+ */
 async function renderExplore(q) {
   const sq = q.toLowerCase();
+
+  // В майбутньому — запит до Supabase API
   const stored = JSON.parse(localStorage.getItem('era_users') || '[]');
   const all = [...SU, ...stored.filter(u => !SU.find(s => s.id === u.id))];
-  const filtered = sq ? all.filter(u => u.username.toLowerCase().includes(sq) || (u.displayName || '').toLowerCase().includes(sq)) : all;
+  const filtered = sq
+    ? all.filter(u => u.username.toLowerCase().includes(sq) || (u.displayName || '').toLowerCase().includes(sq))
+    : all;
 
+  // Отримуємо кольори для акценту на друзях
   const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff' });
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
 
@@ -46,18 +55,20 @@ ${filtered.length === 0
       else if (isReq) statusTxt = t('profile.requested');
 
       return `<div class="rp-user" style="background: var(--s1); border: 1px solid var(--b1); padding: 12px; border-radius:14px; transition: transform .2s" onclick="openUserCard('${u.id}')">
-        <!-- Аватар -->
+        <!-- Аватар з неоновим контуром для друзів -->
         <div style="width:46px; height:46px; flex-shrink:0; position:relative">
           ${avatarHTML(u, 46, { friend: true })}
           ${isUserPrivate(u.id) ? `<div style="position:absolute; bottom:-2px; right:-2px; font-size:10px; background:var(--s2); border-radius:50%; padding:2px; border:1px solid var(--b1)">🔒</div>` : ''}
         </div>
-        <!-- Інфо та статус -->
-        <div style="flex:1; min-width:0; margin-left:4px">
+
+        <!-- Інфо та Статус відносин -->
+        <div style="flex:1; min-width:0; margin-left:8px">
           <div style="font-size:14px; font-weight:700; color:var(--t1)">@${esc(u.username)}</div>
           <div style="font-size:12px; color:var(--t2)">${esc(u.displayName || '') || '&nbsp;'}</div>
           ${statusTxt ? `<div style="font-size:10px; font-weight:600; color:${frnd ? myCols[0] : 'var(--t3)'}; margin-top:3px">${statusTxt}</div>` : ''}
         </div>
-        <!-- Vibe Code -->
+
+        <!-- Vibe Code (також підсвічується для друзів) -->
         <div style="width:64px; height:32px; border-radius:6px; overflow:hidden; border:1px solid var(--b1); flex-shrink:0">
           ${makeVibeCode(u.baseColor, u.id, 64, 32, { friend: true })}
         </div>
@@ -65,8 +76,9 @@ ${filtered.length === 0
     }).join('')}
   </div>`}`;
   
+  // Повертаємо фокус у поле пошуку
   const inp = document.getElementById('explore-inp');
-  if (inp && q) { const l = q.length; inp.setSelectionRange(l, l); }
+  if (inp && q) { const l = q.length; inp.focus(); inp.setSelectionRange(l, l); }
 }
 
 // ── Right panel ───────────────────────────────────────────

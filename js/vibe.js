@@ -34,12 +34,17 @@ function vibeColors(baseHex, seed) {
   ];
 }
 
-// Створення SVG штрих-коду (Vibe Code)
-// Кожен користувач має унікальний візуальний код на основі базового кольору
+/**
+ * Створення SVG штрих-коду (Vibe Code)
+ * Кожен користувач має унікальний візуальний код на основі базового кольору.
+ * Vibe Code є основою візуальної ідентичності ERA.
+ */
 function makeVibeCode(baseHex, uid, w = 100, h = 100, opts = {}) {
   const seed = hashStr(String(uid));
   const cols = vibeColors(baseHex, seed);
   const gid = 'vc' + seed;
+
+  // Генерація випадкових полос
   const N = 9 + Math.floor(srand(seed) * 7);
   const ws = Array.from({ length: N }, (_, i) => 0.4 + srand(seed + i * 7 + 1) * 2.2);
   const tw = ws.reduce((a, b) => a + b, 0);
@@ -57,14 +62,15 @@ function makeVibeCode(baseHex, uid, w = 100, h = 100, opts = {}) {
     x += bw;
   }
 
-  // Логіка для друзів: неоновий контур кольору вайбу поточного юзера
+  // АКЦЕНТ ДЛЯ ДРУЗІВ: Використовуємо колір ВЛАСНОГО вайбу для підсвітки зв'язку
   const isFrnd = opts.friend && isFriend(uid);
   const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff' });
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
 
-  const stroke = isFrnd ? myCols[0] : 'rgba(255,255,255,.1)';
-  const sw = isFrnd ? '4' : '0.5';
-  const glow = isFrnd ? `filter: drop-shadow(0 0 5px ${myCols[0]}cc);` : '';
+  // Якщо це друг — малюємо товстий неоновий контур кольору вайбу поточного юзера
+  const stroke = isFrnd ? myCols[0] : 'rgba(255,255,255,.08)';
+  const sw = isFrnd ? '5' : '0.5';
+  const glow = isFrnd ? `filter: drop-shadow(0 0 6px ${myCols[0]}ee);` : '';
 
   return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" style="display:block; ${glow}">
     <defs>
@@ -117,28 +123,35 @@ function saveMoodHist(id) {
   localStorage.setItem(k, JSON.stringify(filtered.slice(-30)));
 }
 
-// Генерація HTML для аватара
-// Якщо юзер є другом, додається неоновий контур кольору вайбу поточного авторизованого користувача
+/**
+ * Генерація HTML для аватара
+ * Реалізує унікальний стиль ERA з динамічними контурами.
+ */
 function avatarHTML(user, size = 38, opts = {}) {
   const vibe = currentVibeColor(user);
   const cols = vibeColors(vibe, hashStr(user.id));
+
+  // Перевірка на статус "Друг" для візуального акценту
   const isFrnd = opts.friend && isFriend(user.id);
 
-  // Отримуємо колір вайбу поточного юзера для акценту на друзях
+  // Отримуємо колір ВЛАСНОГО вайбу поточного авторизованого юзера
   const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff' });
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
 
+  // Логіка контуру: якщо друг — використовуємо колір вайбу поточного юзера (показуємо зв'язок)
   const borderColor = isFrnd ? myCols[0] : cols[0];
   const border = isFrnd
-    ? `3px solid ${borderColor}` // Неонове кільце для друзів
-    : `2.5px solid ${cols[0]}55`;
-  const glow = isFrnd ? `box-shadow: 0 0 12px ${borderColor}99;` : '';
+    ? `3px solid ${borderColor}` // Яскраве кільце для друзів
+    : `2px solid ${cols[0]}44`;  // Тонкий напівпрозорий контур для звичайних юзерів
+
+  const glow = isFrnd ? `box-shadow: 0 0 12px ${borderColor}aa;` : '';
   const cls = isFrnd ? ' ava-friend' : '';
 
   if (user.avatar) {
     return `<img src="${user.avatar}" style="width:${size}px; height:${size}px; border-radius:50%; object-fit:cover; display:block; border:${border}; ${glow}" class="era-ava${cls}">`;
   }
   
+  // Заглушка, якщо немає фото — градієнт на основі Vibe
   const init = (user.displayName || user.username || '?').slice(0, 2).toUpperCase();
   return `<div class="era-ava${cls}" style="width:${size}px; height:${size}px; border-radius:50%; background:linear-gradient(135deg, ${cols[0]}, ${cols[1]}); display:flex; align-items:center; justify-content:center; font-size:${Math.floor(size * 0.36)}px; font-weight:700; color:#fff; flex-shrink:0; border:${border}; ${glow}">${init}</div>`;
 }

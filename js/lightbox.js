@@ -129,15 +129,15 @@ function buildLightbox(dir=0) {
     const absDx = Math.abs(dx);
     const absDy = Math.abs(dy);
 
-    // Якщо свайп явно вертикальний — активуємо закриття
+    // Визначаємо напрямок жесту: якщо вертикальний — активуємо закриття
     if (!isVertical && absDy > absDx && absDy > 5) {
       isVertical = true;
     }
 
     if (isVertical) {
-      // Swipe-to-close: фото зменшується і стає прозорим за пальцем
+      // Swipe-to-close (вгору або вниз): фото зменшується і стає прозорим
       const scale = Math.max(0.6, 1 - absDy / 1200);
-      const opacity = Math.max(0, 1 - absDy / 500);
+      const opacity = Math.max(0, 1 - absDy / 600);
       wrapEl.style.transform = `translateY(${dy}px) scale(${scale})`;
       lb.style.opacity = opacity;
       if (e.cancelable) e.preventDefault();
@@ -185,19 +185,24 @@ function buildLightbox(dir=0) {
 }
 
 
-// Подвійний тап для лайка з анімацією серця
+/**
+ * Подвійний тап у лайтбоксі для лайка.
+ * Аналогічно стрічці, показує велике серце.
+ */
 function lbDoubleTap(pid, imgArea) {
-  const p=POSTS.find(x=>x.id===pid); if(!p) return;
-  if(!p.liked){
-    p.liked=true;
+  const p = POSTS.find(x => x.id === pid); if (!p) return;
+
+  if (!p.liked) {
+    p.liked = true;
     p.likes++;
     refreshLikeBtn(pid);
   }
-  // Велика іконка серця по центру
-  const heart=document.createElement('div');
-  heart.className='like-heart-anim';
+
+  // Велика іконка серця по центру (100px для лайтбоксу)
+  const heart = document.createElement('div');
+  heart.className = 'like-heart-anim';
   heart.style.fontSize = '100px';
-  heart.textContent='❤️';
+  heart.textContent = '❤️';
   imgArea.appendChild(heart);
-  setTimeout(()=>heart.remove(),700);
+  setTimeout(() => heart.remove(), 700);
 }

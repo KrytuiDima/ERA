@@ -1,39 +1,57 @@
 // js/social.js — Privacy, Friends, Follow Requests, Pins
 
+// ── СИСТЕМА ПІДПИСОК ТА ПРИВАТНОСТІ (SOCIAL & PRIVACY) ────────────────
+// ERA використовує дворівневу систему: "Підписник" та "Друг" (взаємна підписка)
+
+/**
+ * Перевірка, чи є користувач другом (взаємна підписка)
+ */
 function isFriend(uid) {
-  return FOLLOWS.get(uid)==='following' && FOLLOWERS.get(uid)===true;
+  return FOLLOWS.get(uid) === 'following' && FOLLOWERS.get(uid) === true;
 }
 
+/**
+ * Отримати список ID усіх друзів
+ */
 function getFriendIds() {
-  const ids=[];
-  FOLLOWS.forEach((status,uid)=>{ if(status==='following'&&FOLLOWERS.get(uid)===true) ids.push(uid); });
+  const ids = [];
+  FOLLOWS.forEach((status, uid) => {
+    if (status === 'following' && FOLLOWERS.get(uid) === true) ids.push(uid);
+  });
   return ids;
 }
 
-// ── Follow / Unfollow ─────────────────────────────────────
-// Підписка на користувача (враховуючи приватність)
-// Всі мутації асинхронні для майбутньої інтеграції з Supabase
+// ── ПІДПИСКА / ВІДПИСКА (FOLLOW / UNFOLLOW) ───────────────────────────
+
+/**
+ * Основна функція підписки на користувача
+ * Враховує приватність акаунта та статус "Друзі"
+ */
 async function followUser(uid) {
   const user = getUser(uid);
   const isPrivate = user?.privacy === 'private';
 
   if (isPrivate) {
-    // Для приватних акаунтів створюємо запит
+    // Для приватних акаунтів: створюємо запит на підписку
     FOLLOWS.set(uid, 'requested');
     await saveFollowsToStorage();
+
+    // Додаємо сповіщення про запит (імітація для локальної роботи)
     addNotif({ type: 'request', fromUid: APP.user.id, toUid: uid });
     showToast(t('social.requestSent', { user: user.username }));
   } else {
-    // Для публічних — миттєва підписка
+    // Для публічних акаунтів: миттєва підписка
     FOLLOWS.set(uid, 'following');
     await saveFollowsToStorage();
     
-    // Якщо підписка взаємна — вони тепер друзі
+    // Якщо підписка взаємна — вони автоматично стають друзями
     if (FOLLOWERS.get(uid) === true) {
       showToast(t('social.nowFriends', { user: user.username }));
     } else {
       showToast(t('social.followedPublic', { user: user.username }));
     }
+
+    // Оновлюємо UI якщо потрібно
     if (APP.view === 'explore') renderExplore(document.getElementById('explore-inp')?.value || '');
     renderRightPanel();
   }
@@ -84,32 +102,49 @@ async function toggleFollowUser(uid, btn) {
   }
 }
 
-// ── Approve / Decline ─────────────────────────────────────
-// Схвалення запиту: Дія 1 — Дозволити перегляд
-// Це дає користувачу статус підписника та доступ до контенту
+// ── ДВОРІВНЕВЕ СХВАЛЕННЯ (TWO-LEVEL APPROVAL) ────────────────────────
+
+/**
+ * ДІЯ 1: Схвалення запиту — "Дозволити перегляд"
+ * Дає користувачу статус підписника та відкриває доступ до контенту
+ */
 async function approveRequest(fromUid) {
+  // Надаємо статус підписника (Action 1)
   FOLLOWERS.set(fromUid, true);
   REQUESTS.delete(fromUid);
 
-  // Оновлюємо статус у списку сповіщень
+  // Оновлюємо об'єкт сповіщення, щоб розблокувати Крок 2
   const n = NOTIFS.find(x => x.userId === fromUid && x.type === 'request');
-  if (n) n._approved = true;
+  if (n) {
+    n._approved = true;
+    n.unread = false; // Позначаємо як прочитане після дії
+  }
 
-  // Надсилаємо сповіщення про схвалення
+  // Надсилаємо сповіщення про схвалення (у Supabase це буде запис у таблицю)
   addNotif({ type: 'approved', fromUid: APP.user.id, toUid: fromUid });
   showToast(t('profile.requestApproved'));
 
-  // Оновлюємо інтерфейс у всіх активних зонах
+  // Оновлюємо стан у сховищі
+  await saveFollowsToStorage();
+
+  // Оновлюємо UI у всіх відкритих вікнах
   if (document.getElementById('follow-requests-screen')) renderFollowRequests();
   if (APP.view === 'profile') renderProfile(APP.profileUid);
   if (APP.view === 'notif') renderNotif();
   renderNotifBadge();
 }
 
-// Крок 2 — Підписатися у відповідь (стають друзями)
+/**
+ * ДІЯ 2: "Підписатися у відповідь"
+ * Робить підписку взаємною, що автоматично змінює статус на "Друзі"
+ */
 async function followBack(uid) {
+  // Підписуємося у відповідь
   await followUser(uid);
+
+  // Якщо статус змінився на "Друзі", UI автоматично це підхопить через isFriend()
   if (APP.view === 'notif') renderNotif();
+  if (APP.view === 'profile') renderProfile(APP.profileUid);
 }
 
 async function declineRequest(fromUid) {
@@ -143,81 +178,107 @@ function renderFollowRequests() {
 
 function getRequestCount() { return REQUESTS.size; }
 
-// ── Pins ─────────────────────────────────────────────────
-const MAX_PINS=3;
+// ── СИСТЕМА ЗАКРІПЛЕНИХ ПОСТІВ (PIN SYSTEM) ──────────────────────────
+const MAX_PINS = 3;
 
+/**
+ * Отримати список закріплених постів користувача.
+ */
 function getPinnedPosts(uid) {
-  const u=uid===APP.user?.id?APP.user:getUser(uid);
-  return (u?.pinnedPosts||[]).filter(pid=>POSTS.find(p=>p.id===pid));
+  const u = (uid === APP.user?.id) ? APP.user : getUser(uid);
+  return (u?.pinnedPosts || []).filter(pid => POSTS.find(p => p.id === pid));
 }
 
-// Закріплення поста (макс 3)
+/**
+ * Закріпити пост у профілі (ліміт — 3).
+ * Якщо ліміт перевищено, показує модалку заміни.
+ */
 async function pinPost(pid) {
   if (!APP.user) return;
-  const pinned=APP.user.pinnedPosts||[];
+  const pinned = APP.user.pinnedPosts || [];
   if (pinned.includes(pid)) return;
 
-  // Якщо вже 3 закріплено — показуємо модалку заміни
-  if (pinned.length>=MAX_PINS){
+  // ПЕРЕВІРКА ЛІМІТУ: ERA дозволяє лише 3 піни.
+  if (pinned.length >= MAX_PINS) {
     showPinReplaceDialog(pid);
     return;
   }
 
-  APP.user.pinnedPosts=[pid,...pinned];
-  const p=POSTS.find(x=>x.id===pid); if(p) p.pinned=true;
+  // Додаємо новий пін на початок
+  APP.user.pinnedPosts = [pid, ...pinned];
+  const p = POSTS.find(x => x.id === pid);
+  if (p) p.pinned = true;
+
   await saveUserData();
   showToast(t('post.pinned'));
-  if (APP.view==='profile') renderProfile(APP.user.id);
+  if (APP.view === 'profile') renderProfile(APP.user.id);
 }
 
-// Відкріплення
+/**
+ * Відкріпити пост.
+ */
 async function unpinPost(pid) {
   if (!APP.user) return;
-  APP.user.pinnedPosts=(APP.user.pinnedPosts||[]).filter(id=>id!==pid);
-  const p=POSTS.find(x=>x.id===pid); if(p) p.pinned=false;
+  APP.user.pinnedPosts = (APP.user.pinnedPosts || []).filter(id => id !== pid);
+  const p = POSTS.find(x => x.id === pid);
+  if (p) p.pinned = false;
+
   await saveUserData();
   showToast(t('post.unpinned'));
-  if (APP.view==='profile') renderProfile(APP.user.id);
+  if (APP.view === 'profile') renderProfile(APP.user.id);
 }
 
+/**
+ * Модальне вікно для заміни одного з 3-х закріплених постів.
+ */
 function showPinReplaceDialog(newPid) {
-  const pinned=getPinnedPosts(APP.user.id);
-  const lb=document.createElement('div'); lb.id='pin-replace-dialog';
-  lb.style.cssText='position:fixed;inset:0;z-index:700;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .18s ease';
-  lb.innerHTML=`
-    <div style="background:var(--s1);border:1px solid var(--b2);border-radius:20px;padding:24px;width:100%;max-width:380px">
-      <div style="font-size:15px;font-weight:700;margin-bottom:6px">${t('post.pinLimit')}</div>
-      <div style="font-size:12px;color:var(--t2);margin-bottom:18px">${t('post.pinLimitHint')}</div>
-      <div style="display:flex;gap:10px;margin-bottom:18px">
-        ${pinned.map(pid=>{
-          const p=POSTS.find(x=>x.id===pid),u=getUser(p?.userId||'');
-          const bg=postGrad(u),imgs=getPostImages(p);
-          return`<div style="flex:1;aspect-ratio:1;border-radius:10px;overflow:hidden;cursor:pointer;border:2px solid transparent;transition:border .18s" onclick="replacePinWith('${pid}','${newPid}');document.getElementById('pin-replace-dialog').remove()" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='transparent'">
-            ${imgs&&imgs[0]?`<img src="${imgs[0]}" style="width:100%;height:100%;object-fit:cover">`:
-            `<div style="width:100%;height:100%;background:${bg}"></div>`}
+  const pinned = getPinnedPosts(APP.user.id);
+  const lb = document.createElement('div');
+  lb.id = 'pin-replace-dialog';
+  lb.style.cssText = 'position:fixed;inset:0;z-index:700;background:rgba(0,0,0,.85);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .18s ease';
+
+  lb.innerHTML = `
+    <div style="background:var(--s1); border:1px solid var(--b2); border-radius:24px; padding:28px; width:100%; max-width:400px; text-align:center">
+      <div style="font-size:17px; font-weight:700; margin-bottom:8px">${t('post.pinLimit')}</div>
+      <div style="font-size:13px; color:var(--t2); margin-bottom:22px">${t('post.pinLimitHint')}</div>
+
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:24px">
+        ${pinned.map(pid => {
+          const p = POSTS.find(x => x.id === pid), u = getUser(p?.userId || '');
+          const bg = postGrad(u), imgs = getPostImages(p);
+          return `<div style="aspect-ratio:1; border-radius:12px; overflow:hidden; cursor:pointer; border:2px solid transparent; transition:transform .2s"
+            onclick="replacePinWith('${pid}','${newPid}'); document.getElementById('pin-replace-dialog').remove()"
+            onmouseover="this.style.transform='scale(1.05)'; this.style.borderColor='var(--blue)'"
+            onmouseout="this.style.transform=''; this.style.borderColor='transparent'">
+            ${imgs && imgs[0] ? `<img src="${imgs[0]}" style="width:100%; height:100%; object-fit:cover">` : `<div style="width:100%; height:100%; background:${bg}"></div>`}
           </div>`;
         }).join('')}
       </div>
-      <button onclick="document.getElementById('pin-replace-dialog').remove()" style="width:100%;padding:10px;border-radius:9px;background:var(--s2);border:1px solid var(--b1);color:var(--t2);font-size:13px;font-weight:600;cursor:pointer">Скасувати</button>
+
+      <button onclick="document.getElementById('pin-replace-dialog').remove()" style="width:100%; padding:12px; border-radius:12px; background:var(--s2); border:1px solid var(--b1); color:var(--t1); font-size:14px; font-weight:600; cursor:pointer">${t('lang.cancel')}</button>
     </div>`;
-  lb.addEventListener('click',e=>{if(e.target===lb)lb.remove();});
+
+  lb.addEventListener('click', e => { if (e.target === lb) lb.remove(); });
   document.body.appendChild(lb);
+  eraPush('pin-replace');
 }
 
-// Заміна одного закріпленого поста іншим
-async function replacePinWith(oldPid,newPid) {
+/**
+ * Заміна одного закріпленого поста іншим.
+ */
+async function replacePinWith(oldPid, newPid) {
   if (!APP.user) return;
-  const pinned=APP.user.pinnedPosts||[];
-  const idx=pinned.indexOf(oldPid);
-  if(idx>=0) pinned[idx]=newPid;
+  const pinned = APP.user.pinnedPosts || [];
+  const idx = pinned.indexOf(oldPid);
+  if (idx >= 0) pinned[idx] = newPid;
 
-  APP.user.pinnedPosts=pinned;
-  const oldP=POSTS.find(x=>x.id===oldPid); if(oldP) oldP.pinned=false;
-  const newP=POSTS.find(x=>x.id===newPid); if(newP) newP.pinned=true;
+  APP.user.pinnedPosts = pinned;
+  const oldP = POSTS.find(x => x.id === oldPid); if (oldP) oldP.pinned = false;
+  const newP = POSTS.find(x => x.id === newPid); if (newP) newP.pinned = true;
 
   await saveUserData();
   showToast(t('post.pinned'));
-  if (APP.view==='profile') renderProfile(APP.user.id);
+  if (APP.view === 'profile') renderProfile(APP.user.id);
 }
 
 // ── Notification helper ───────────────────────────────────

@@ -81,6 +81,8 @@ img{display:block}
 .sb-user:hover{background:var(--s2)}
 .sb-uname{font-size:13px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sb-uhandle{font-size:11px;color:var(--t2)}
+.friend-badge{display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:6px;vertical-align:middle}
+.friend-badge.cmt{width:6px;height:6px;margin-left:5px}
 .nb{position:absolute;top:6px;right:6px;min-width:16px;height:16px;border-radius:8px;background:var(--red);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 3px}
 .main-area{flex:1;height:100dvh;overflow-y:auto;border-right:1px solid var(--b1);display:flex;flex-direction:column;min-width:0}
 .feed-header{position:sticky;top:0;z-index:20;background:rgba(0,0,0,.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--b1);display:flex}
@@ -279,6 +281,13 @@ img{display:block}
 .cmt-ph-prev{display:flex;align-items:center;gap:8px;padding:6px 16px 0}
 .cmt-ph-prev img{height:52px;border-radius:7px;border:.5px solid var(--b2)}
 .cmt-ph-rm{width:18px;height:18px;border-radius:50%;background:var(--red);border:none;color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center}
+
+/* ── FRIENDS ──────────────────────────────────────────────── */
+.era-ava.ava-friend { animation: avaGlow 3s infinite ease-in-out; }
+@keyframes avaGlow {
+  0%, 100% { box-shadow: 0 0 10px rgba(255,255,255,0.1); }
+  50% { box-shadow: 0 0 18px rgba(255,255,255,0.2); }
+}
 
 /* ── LIGHTBOX ─────────────────────────────────────────────── */
 #lightbox{position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.97);display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:none;will-change:opacity}
