@@ -25,15 +25,18 @@ function _groupNotifs(notifs) {
   const out = [], seen = new Set();
   for (const n of notifs) {
     if (seen.has(n.id)) continue;
-    if (n.type==='like') {
-      const sameUser = notifs.filter(x=>x.userId===n.userId&&x.type==='like'&&!seen.has(x.id));
-      if (sameUser.length>1) {
-        const merged = {...sameUser[0], _count:sameUser.length, _ids:sameUser.map(x=>x.id)};
-        sameUser.forEach(x=>seen.add(x.id));
-        out.push(merged); continue;
+    if (n.type === 'like') {
+      // Групуємо лайки від одного й того самого користувача, що йдуть підряд або протягом короткого часу
+      const sameUser = notifs.filter(x => x.userId === n.userId && x.type === 'like' && !seen.has(x.id));
+      if (sameUser.length > 1) {
+        const merged = { ...sameUser[0], _count: sameUser.length, _ids: sameUser.map(x => x.id) };
+        sameUser.forEach(x => seen.add(x.id));
+        out.push(merged);
+        continue;
       }
     }
-    seen.add(n.id); out.push(n);
+    seen.add(n.id);
+    out.push(n);
   }
   return out;
 }
@@ -103,7 +106,7 @@ function renderNotifRow(n, idx) {
   </div>
 
   <!-- Зона B: Текст -> Пост -->
-  <div style="flex:1; min-width:0; cursor:pointer" onclick="${post ? `expandPost('${post.id}')` : ''}">
+  <div style="flex:1; min-width:0; cursor:pointer" onclick="${post ? `expandPost('${post.id}',null,'${n.commentId||''}')` : ''}">
     <div style="font-size:13px; color:var(--t1); line-height:1.4">${text}</div>
     <div style="font-size:10px; color:var(--t3); margin-top:3px">${fmtTime(n.ts)}</div>
     ${actionBtns}

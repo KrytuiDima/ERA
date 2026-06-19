@@ -137,7 +137,7 @@ async function saveProfile() {
   
   APP.user.displayName = dname; 
   APP.user.username = username; 
-  APP.user.bio = bio; 
+  APP.user.bio = bio.slice(0, 150); // Тільки 150 символів
   APP.user.website = website;
   
   await saveUserData();
