@@ -1,6 +1,6 @@
 // js/lightbox.js — Lightbox with physics (Перегляд медіа)
 
-function expandPost(pid, ctx) {
+function expandPost(pid, ctx, focusCmtId) {
   const p = POSTS.find(x=>x.id===pid);
   if (p && !SESSION_VIEWS.has('lb-'+pid)) { SESSION_VIEWS.add('lb-'+pid); p.views=(p.views||0)+1; }
   if (ctx==='profile' && APP.profileUid) {
@@ -13,6 +13,20 @@ function expandPost(pid, ctx) {
   if (LB_IDX<0) LB_IDX=0;
   lockScroll(); eraPush('lightbox');
   buildLightbox();
+
+  if (focusCmtId) {
+    setTimeout(() => {
+      openCmts(pid);
+      setTimeout(() => {
+        const cmtEl = document.getElementById('cmt-' + focusCmtId);
+        if (cmtEl) {
+          cmtEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          cmtEl.style.background = 'var(--s2)';
+          setTimeout(() => cmtEl.style.background = '', 2000);
+        }
+      }, 350);
+    }, 300);
+  }
 }
 
 function _closeLightboxInternal(fromPopState=false) {
@@ -154,9 +168,11 @@ function buildLightbox(dir=0) {
     
     // Закриваємо при достатньому зміщенні (вгору або вниз)
     if (isVertical && Math.abs(dy) > 130) {
-      wrapEl.style.transform = `translateY(${dy > 0 ? '100vh' : '-100vh'}) scale(0.5)`;
+      const targetY = dy > 0 ? window.innerHeight : -window.innerHeight;
+      wrapEl.style.transition = 'transform .4s cubic-bezier(.22,1,.36,1), opacity .4s';
+      wrapEl.style.transform = `translateY(${targetY}px) scale(0.6)`;
       lb.style.opacity = '0';
-      setTimeout(() => closeLightbox(), 250);
+      setTimeout(() => closeLightbox(), 300);
     } else {
       wrapEl.style.transform = '';
       lb.style.opacity = '1';

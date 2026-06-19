@@ -91,6 +91,11 @@ async function approveRequest(fromUid) {
   FOLLOWERS.set(fromUid, true);
   REQUESTS.delete(fromUid);
 
+  // Симулюємо оновлення статусу підписки для іншого користувача (для SPA-прототипу)
+  const otherFollows = JSON.parse(localStorage.getItem('era_follows_' + fromUid) || '{}');
+  otherFollows[APP.user.id] = 'following';
+  localStorage.setItem('era_follows_' + fromUid, JSON.stringify(otherFollows));
+
   // Оновлюємо статус у списку сповіщень
   const n = NOTIFS.find(x => x.userId === fromUid && x.type === 'request');
   if (n) n._approved = true;
