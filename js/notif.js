@@ -46,7 +46,7 @@ function renderNotifRow(n, idx) {
   const postBg = post ? postGrad(getUser(post.userId)) : '';
   const postImg = post ? (getPostImages(post) || [])[0] : null;
 
-  // Колір маркера новизни — колір власного вайбу поточного авторизованого юзера
+  // Колір маркера новизни — колір ВЛАСНОГО вайбу поточного авторизованого юзера
   const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff', id: 'me' });
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
   const dotColor = myCols[0];
@@ -81,7 +81,7 @@ function renderNotifRow(n, idx) {
     default: text = `@${u.username}`;
   }
 
-  // Кнопки дій для запитів (Action 1 та Action 2)
+  // Кнопки дій для запитів (Action 1 та Action 2 прямо в рядку)
   const actionBtns = (n.type === 'request' && !n._approved) ? `
     <div style="display:flex; gap:6px; margin-top:8px">
       <button onclick="event.stopPropagation(); approveRequest('${n.userId}')" style="padding:6px 14px; border-radius:8px; background:var(--grad); border:none; color:#000; font-size:12px; font-weight:600; cursor:pointer">${t('notif.approve')}</button>
@@ -94,7 +94,7 @@ function renderNotifRow(n, idx) {
     : '';
 
   return `<div class="notif-row" style="display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--b1); animation:fadeUp .22s ease ${idx * 25}ms both; position: relative">
-  <!-- Маркер новизни (крапка кольору вайбу юзера) -->
+  <!-- Маркер новизни (крапка кольору ВЛАСНОГО вайбу) -->
   ${n.unread ? `<div style="position:absolute; left:5px; top:50%; transform:translateY(-50%); width:6px; height:6px; border-radius:50%; background:${dotColor}; box-shadow:0 0 6px ${dotColor}"></div>` : ''}
 
   <!-- Зона A: Аватар -> Профіль -->
@@ -103,7 +103,7 @@ function renderNotifRow(n, idx) {
   </div>
 
   <!-- Зона B: Текст -> Пост -->
-  <div style="flex:1; min-width:0; cursor:pointer" onclick="${post ? `expandPost('${post.id}')` : ''}">
+  <div style="flex:1; min-width:0; cursor:pointer" onclick="${post ? `expandPost('${post.id}', null, '${n.type === 'comment' ? n.commentId : ''}')` : ''}">
     <div style="font-size:13px; color:var(--t1); line-height:1.4">${text}</div>
     <div style="font-size:10px; color:var(--t3); margin-top:3px">${fmtTime(n.ts)}</div>
     ${actionBtns}
@@ -112,7 +112,7 @@ function renderNotifRow(n, idx) {
   ${followBackBtn}
 
   <!-- Зона C: Прев'ю поста -> Лайтбокс -->
-  ${post ? `<div style="width:40px; height:40px; border-radius:8px; overflow:hidden; flex-shrink:0; background:${postBg}; cursor:pointer" onclick="expandPost('${post.id}')">
+  ${post ? `<div style="width:40px; height:40px; border-radius:8px; overflow:hidden; flex-shrink:0; background:${postBg}; cursor:pointer" onclick="expandPost('${post.id}', null, '${n.type === 'comment' ? n.commentId : ''}')">
     ${postImg ? `<img src="${postImg}" style="width:100%; height:100%; object-fit:cover">` : ''}
   </div>` : ''}
 </div>`;

@@ -216,7 +216,12 @@ function editDesc(pid) {
 }
 
 // ── Comments ──────────────────────────────────────────────
-function openCmts(pid) {
+/**
+ * Відкриває модальне вікно коментарів
+ * @param {string} pid — ID поста
+ * @param {string} focusCmtId — ID коментаря для виділення та підскролу
+ */
+function openCmts(pid, focusCmtId = null) {
   OPEN_POST=pid; CMT_PHOTO=null;
   document.getElementById('cmt-ph-prev').classList.add('hidden');
   document.getElementById('cmt-input').value='';
@@ -232,20 +237,31 @@ function openCmts(pid) {
     </div>
     ${p.desc?`<div style="font-size:13px;color:var(--t2);line-height:1.55">${tags(esc(p.desc))}</div>`:''}
   </div>
-  <div class="cmt-list" id="cmt-list">${p.comments.map(c=>renderCmt(c)).join('')}</div>
+  <div class="cmt-list" id="cmt-list">${p.comments.map(c=>renderCmt(c, c.id === focusCmtId)).join('')}</div>
   ${p.comments.length===0?`<div style="text-align:center;font-size:12px;color:var(--t3);padding:16px 0">${t('post.firstComment')}</div>`:''}`;
   openModal('modal-cmt');
+
+  if (focusCmtId) {
+    setTimeout(() => {
+      const el = document.getElementById('cmt-' + focusCmtId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.style.background = 'rgba(255,255,255,0.05)';
+        setTimeout(() => el.style.background = '', 2000);
+      }
+    }, 400);
+  }
 }
 
 // Рендеринг одного коментаря
 // Реалізовано відображення фото у вигляді квадратного прев'ю з відкриттям у загальному лайтбоксі
-function renderCmt(c) {
+function renderCmt(c, highlighted = false) {
   const u = getUser(c.userId);
   const frnd = isFriend(c.userId);
   const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff' });
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
 
-  return `<div class="cmt-item">
+  return `<div class="cmt-item" id="cmt-${c.id}" style="${highlighted ? 'border-left: 2px solid ' + myCols[0] : ''}">
   <div class="cmt-ava" style="cursor:pointer" onclick="openUserCard('${u.id}')">${avatarHTML(u, 30, { friend: true })}</div>
   <div class="cmt-bwrap">
     <div>
