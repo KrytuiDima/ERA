@@ -52,8 +52,8 @@ function renderProfile(uid) {
 <div class="profile-info">
   <div class="profile-ava-row">
     <div class="profile-ava" ${own?`onclick="document.getElementById('pava-f').click()" title="${t('profile.changePhoto')}"`:''}>
-      <div class="profile-ava-glow" style="background:linear-gradient(135deg,${cols[0]},${cols[1]},${cols[2]});${frnd?'filter:blur(6px);opacity:.9;animation:none':''}"></div>
-      <div class="profile-ava-ring">${avatarHTML(u,84,{friend:false})}</div>
+      <div class="profile-ava-glow" style="background:linear-gradient(135deg,${frnd ? myCols[0] : cols[0]},${frnd ? myCols[1] : cols[1]},${frnd ? myCols[2] : cols[2]});${frnd?'filter:blur(8px);opacity:.9;animation:none;box-shadow:0 0 20px '+myCols[0]:''}"></div>
+      <div class="profile-ava-ring">${avatarHTML(u,84,{friend:true})}</div>
       ${own?`<input type="file" id="pava-f" accept="image/*" class="hidden" onchange="changeAva(event)">`:''}
     </div>
     <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
@@ -123,8 +123,8 @@ async function changeAva(e) {
   const f=e.target.files[0]; if(!f) return;
   const r=new FileReader();
   r.onload=ev=>{
-    // Викликаємо кропер з пропорціями 1:1
-    showCropTool(ev.target.result, async res => {
+    // Викликаємо Studio з пропорціями 1:1
+    openStudio(ev.target.result, async res => {
       APP.user.avatar = res; 
       await saveUserData();
       document.getElementById('sb-ava').innerHTML = avatarHTML(APP.user,34);
@@ -141,8 +141,8 @@ async function changeBanner(e) {
   const f=e.target.files[0]; if(!f) return;
   const r=new FileReader();
   r.onload=ev=>{
-    // Викликаємо кропер з пропорціями 16:9
-    showCropTool(ev.target.result, async res => {
+    // Викликаємо Studio з пропорціями 16:9
+    openStudio(ev.target.result, async res => {
       APP.user.banner = res; 
       await saveUserData();
       renderProfile(APP.user.id); 
@@ -176,7 +176,7 @@ function openUserCard(uid) {
 </div>
 <div class="uc-body">
   <div style="position:relative;width:56px;height:56px;margin-bottom:8px">
-    <div style="position:absolute;inset:-4px;border-radius:50%;background:linear-gradient(135deg,${frnd ? myCols[0] : cols[0]},${frnd ? myCols[1] : cols[1]});filter:blur(6px);opacity:${frnd?.8:.5};z-index:0"></div>
+    <div style="position:absolute;inset:-4px;border-radius:50%;background:linear-gradient(135deg,${frnd ? myCols[0] : cols[0]},${frnd ? myCols[1] : cols[1]});filter:blur(6px);opacity:${frnd?0.9:0.5};z-index:0;${frnd?'box-shadow:0 0 12px '+myCols[0]:''}"></div>
     <div class="uc-ava" style="z-index:1;position:relative">${avatarHTML(u,56,{friend:true})}</div>
   </div>
   <div style="font-size:16px;font-weight:700">${esc(u.displayName||u.username)}${frnd?` <span style="font-size:11px;color:${myCols[0]}">· ${t('profile.friends')}</span>`:''}</div>

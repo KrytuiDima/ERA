@@ -1,18 +1,33 @@
 // js/lightbox.js — Lightbox with physics (Перегляд медіа)
 
-function expandPost(pid, ctx) {
+/**
+ * Відкриває пост у повноекранному режимі (Лайтбокс)
+ * @param {string} pid — ID поста
+ * @param {string} ctx — Контекст (profile/feed)
+ * @param {string} focusCmtId — ID коментаря для автоматичного підскролу
+ */
+function expandPost(pid, ctx, focusCmtId = null) {
   const p = POSTS.find(x=>x.id===pid);
   if (p && !SESSION_VIEWS.has('lb-'+pid)) { SESSION_VIEWS.add('lb-'+pid); p.views=(p.views||0)+1; }
+
   if (ctx==='profile' && APP.profileUid) {
     LB_LIST = POSTS.filter(p=>p.userId===APP.profileUid).sort((a,b)=>b.ts-a.ts);
   } else {
     const feed = getFeedPosts();
     LB_LIST = feed.length ? feed : [...POSTS].sort((a,b)=>b.ts-a.ts);
   }
+
   LB_IDX = LB_LIST.findIndex(p=>p.id===pid);
   if (LB_IDX<0) LB_IDX=0;
-  lockScroll(); eraPush('lightbox');
+
+  lockScroll();
+  eraPush('lightbox');
   buildLightbox();
+
+  // Якщо передано ID коментаря (зі сповіщень) — відкриваємо коментарі
+  if (focusCmtId) {
+    setTimeout(() => openCmts(pid, focusCmtId), 300);
+  }
 }
 
 function _closeLightboxInternal(fromPopState=false) {
@@ -136,8 +151,9 @@ function buildLightbox(dir=0) {
 
     if (isVertical) {
       // Swipe-to-close: фото зменшується і стає прозорим за пальцем
-      const scale = Math.max(0.6, 1 - absDy / 1200);
-      const opacity = Math.max(0, 1 - absDy / 500);
+      const progress = Math.min(1, absDy / 600);
+      const scale = 1 - progress * 0.4;
+      const opacity = 1 - progress;
       wrapEl.style.transform = `translateY(${dy}px) scale(${scale})`;
       lb.style.opacity = opacity;
       if (e.cancelable) e.preventDefault();

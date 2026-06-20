@@ -135,16 +135,31 @@ async function saveUserData() {
 }
 
 async function saveFollowsToStorage() {
-  // Збереження підписок (майбутній Supabase)
-  const data = {};
-  FOLLOWS.forEach((status,uid) => data[uid]=status);
-  localStorage.setItem('era_follows_'+APP.user?.id, JSON.stringify(data));
+  if (!APP.user) return;
+  // Збереження підписок, фоловерів та запитів (майбутній Supabase)
+  const follows = {};
+  FOLLOWS.forEach((status, uid) => follows[uid] = status);
+  localStorage.setItem('era_follows_' + APP.user.id, JSON.stringify(follows));
+
+  const followers = {};
+  FOLLOWERS.forEach((val, uid) => followers[uid] = val);
+  localStorage.setItem('era_followers_' + APP.user.id, JSON.stringify(followers));
+
+  const requests = [];
+  REQUESTS.forEach((u, uid) => requests.push({ id: uid, user: u }));
+  localStorage.setItem('era_requests_' + APP.user.id, JSON.stringify(requests));
 }
 
 async function loadFollowsFromStorage() {
   if (!APP.user) return;
-  const data = JSON.parse(localStorage.getItem('era_follows_'+APP.user.id)||'{}');
-  Object.entries(data).forEach(([uid,status]) => FOLLOWS.set(uid,status));
+  const follows = JSON.parse(localStorage.getItem('era_follows_' + APP.user.id) || '{}');
+  Object.entries(follows).forEach(([uid, status]) => FOLLOWS.set(uid, status));
+
+  const followers = JSON.parse(localStorage.getItem('era_followers_' + APP.user.id) || '{}');
+  Object.entries(followers).forEach(([uid, val]) => FOLLOWERS.set(uid, val));
+
+  const requests = JSON.parse(localStorage.getItem('era_requests_' + APP.user.id) || '[]');
+  requests.forEach(req => REQUESTS.set(req.id, req.user));
 }
 
 function getFollowStatus(uid) {

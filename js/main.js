@@ -17,7 +17,10 @@ function setView(v) {
 }
 
 // ── Explore (Пошук користувачів) ───────────────────────────
-// Реалізовано швидкий пошук з відображенням Vibe Code та статусу відносин
+/**
+ * Рендерить сторінку пошуку користувачів
+ * @param {string} q — Пошуковий запит
+ */
 async function renderExplore(q) {
   const sq = q.toLowerCase();
   const stored = JSON.parse(localStorage.getItem('era_users') || '[]');

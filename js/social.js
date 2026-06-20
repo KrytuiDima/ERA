@@ -15,13 +15,17 @@ function getFriendIds() {
 // Всі мутації асинхронні для майбутньої інтеграції з Supabase
 async function followUser(uid) {
   const user = getUser(uid);
-  const isPrivate = user?.privacy === 'private';
+  if (!user) return;
+  const isPrivate = user.privacy === 'private';
 
   if (isPrivate) {
     // Для приватних акаунтів створюємо запит
     FOLLOWS.set(uid, 'requested');
     await saveFollowsToStorage();
+
+    // В реальному Supabase це створило б рядок у таблиці notifications для отримувача
     addNotif({ type: 'request', fromUid: APP.user.id, toUid: uid });
+
     showToast(t('social.requestSent', { user: user.username }));
   } else {
     // Для публічних — миттєва підписка
@@ -34,7 +38,9 @@ async function followUser(uid) {
     } else {
       showToast(t('social.followedPublic', { user: user.username }));
     }
+
     if (APP.view === 'explore') renderExplore(document.getElementById('explore-inp')?.value || '');
+    if (APP.view === 'profile' && APP.profileUid === uid) renderProfile(uid);
     renderRightPanel();
   }
 }
@@ -88,18 +94,26 @@ async function toggleFollowUser(uid, btn) {
 // Схвалення запиту: Дія 1 — Дозволити перегляд
 // Це дає користувачу статус підписника та доступ до контенту
 async function approveRequest(fromUid) {
+  // Дія 1: Дозволити перегляд. Користувач стає підписником і отримує доступ до контенту.
   FOLLOWERS.set(fromUid, true);
   REQUESTS.delete(fromUid);
 
-  // Оновлюємо статус у списку сповіщень
+  // Симуляція оновлення статусу підписки для іншого користувача в "базі даних"
+  const followerFollows = JSON.parse(localStorage.getItem('era_follows_' + fromUid) || '{}');
+  followerFollows[APP.user.id] = 'following';
+  localStorage.setItem('era_follows_' + fromUid, JSON.stringify(followerFollows));
+
+  await saveFollowsToStorage();
+
+  // Оновлюємо статус у списку сповіщень, щоб показати кнопку "Підписатися у відповідь" (Дія 2)
   const n = NOTIFS.find(x => x.userId === fromUid && x.type === 'request');
   if (n) n._approved = true;
 
-  // Надсилаємо сповіщення про схвалення
+  // Надсилаємо сповіщення про те, що запит схвалено (для іншого користувача)
   addNotif({ type: 'approved', fromUid: APP.user.id, toUid: fromUid });
   showToast(t('profile.requestApproved'));
 
-  // Оновлюємо інтерфейс у всіх активних зонах
+  // Оновлюємо інтерфейс
   if (document.getElementById('follow-requests-screen')) renderFollowRequests();
   if (APP.view === 'profile') renderProfile(APP.profileUid);
   if (APP.view === 'notif') renderNotif();
@@ -108,8 +122,11 @@ async function approveRequest(fromUid) {
 
 // Крок 2 — Підписатися у відповідь (стають друзями)
 async function followBack(uid) {
+  // Дія 2: Підписатися у відповідь. Доступно після Дії 1.
   await followUser(uid);
+  // Після взаємної підписки статус автоматично стане "Друзі" завдяки логіці isFriend()
   if (APP.view === 'notif') renderNotif();
+  if (APP.view === 'profile' && APP.profileUid === uid) renderProfile(uid);
 }
 
 async function declineRequest(fromUid) {
@@ -181,27 +198,34 @@ async function unpinPost(pid) {
 }
 
 function showPinReplaceDialog(newPid) {
-  const pinned=getPinnedPosts(APP.user.id);
-  const lb=document.createElement('div'); lb.id='pin-replace-dialog';
-  lb.style.cssText='position:fixed;inset:0;z-index:700;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .18s ease';
-  lb.innerHTML=`
-    <div style="background:var(--s1);border:1px solid var(--b2);border-radius:20px;padding:24px;width:100%;max-width:380px">
-      <div style="font-size:15px;font-weight:700;margin-bottom:6px">${t('post.pinLimit')}</div>
-      <div style="font-size:12px;color:var(--t2);margin-bottom:18px">${t('post.pinLimitHint')}</div>
-      <div style="display:flex;gap:10px;margin-bottom:18px">
-        ${pinned.map(pid=>{
-          const p=POSTS.find(x=>x.id===pid),u=getUser(p?.userId||'');
-          const bg=postGrad(u),imgs=getPostImages(p);
-          return`<div style="flex:1;aspect-ratio:1;border-radius:10px;overflow:hidden;cursor:pointer;border:2px solid transparent;transition:border .18s" onclick="replacePinWith('${pid}','${newPid}');document.getElementById('pin-replace-dialog').remove()" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='transparent'">
-            ${imgs&&imgs[0]?`<img src="${imgs[0]}" style="width:100%;height:100%;object-fit:cover">`:
+  const pinned = getPinnedPosts(APP.user.id);
+  const lb = document.createElement('div');
+  lb.id = 'pin-replace-dialog';
+  lb.style.cssText = 'position:fixed;inset:0;z-index:700;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .18s ease';
+
+  lb.innerHTML = `
+    <div style="background:var(--s1);border:1px solid var(--b2);border-radius:20px;padding:24px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,0.8)">
+      <div style="font-size:16px;font-weight:700;margin-bottom:8px">${t('post.pinLimit')}</div>
+      <div style="font-size:12px;color:var(--t2);margin-bottom:20px;line-height:1.4">${t('post.pinLimitHint')}</div>
+      <div style="display:flex;gap:12px;margin-bottom:22px">
+        ${pinned.map(pid => {
+          const p = POSTS.find(x => x.id === pid), u = getUser(p?.userId || '');
+          const bg = postGrad(u), imgs = getPostImages(p);
+          return `<div class="pin-preview-card" style="flex:1;aspect-ratio:1;border-radius:12px;overflow:hidden;cursor:pointer;border:2px solid transparent;background:var(--s2);transition:all .2s"
+            onclick="replacePinWith('${pid}','${newPid}');document.getElementById('pin-replace-dialog').remove()"
+            onmouseover="this.style.borderColor='var(--blue)';this.style.transform='scale(1.05)'"
+            onmouseout="this.style.borderColor='transparent';this.style.transform='scale(1)'">
+            ${imgs && imgs[0] ? `<img src="${imgs[0]}" style="width:100%;height:100%;object-fit:cover">` :
             `<div style="width:100%;height:100%;background:${bg}"></div>`}
           </div>`;
         }).join('')}
       </div>
-      <button onclick="document.getElementById('pin-replace-dialog').remove()" style="width:100%;padding:10px;border-radius:9px;background:var(--s2);border:1px solid var(--b1);color:var(--t2);font-size:13px;font-weight:600;cursor:pointer">Скасувати</button>
+      <button onclick="document.getElementById('pin-replace-dialog').remove(); eraBack()" style="width:100%;padding:12px;border-radius:12px;background:var(--s2);border:1px solid var(--b1);color:var(--t1);font-size:13px;font-weight:600;cursor:pointer;transition:background .15s" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='var(--s2)'">${t('crop.cancel')}</button>
     </div>`;
-  lb.addEventListener('click',e=>{if(e.target===lb)lb.remove();});
+
+  lb.addEventListener('click', e => { if (e.target === lb) { lb.remove(); eraBack(); } });
   document.body.appendChild(lb);
+  eraPush('pin-replace');
 }
 
 // Заміна одного закріпленого поста іншим
@@ -222,13 +246,36 @@ async function replacePinWith(oldPid,newPid) {
 
 // ── Notification helper ───────────────────────────────────
 function addNotif(opts) {
-  // Prevent duplicate request notifications
-  if (opts.type==='request') {
-    const exists=NOTIFS.find(n=>n.userId===opts.fromUid&&n.type==='request');
+  // Запобігання дублікатам запитів
+  if (opts.type === 'request') {
+    const exists = NOTIFS.find(n => n.userId === opts.fromUid && n.type === 'request');
     if (exists) return;
+
+    // Додаємо до списку вхідних запитів
+    const user = getUser(opts.fromUid);
+    REQUESTS.set(opts.fromUid, user);
+    saveFollowsToStorage();
   }
-  const notif={id:'n_'+Date.now(),userId:opts.fromUid,type:opts.type,
-    postId:opts.postId||null,text:opts.text||null,unread:true,ts:Date.now()};
+
+  const notif = {
+    id: 'n_' + Date.now(),
+    userId: opts.fromUid,
+    type: opts.type,
+    postId: opts.postId || null,
+    text: opts.text || null,
+    unread: true,
+    ts: Date.now()
+  };
+
   NOTIFS.unshift(notif);
+
+  // В реальному Supabase ми б зберігали це в таблиці notifications
+  const targetId = opts.toUid || APP.user?.id;
+  if (targetId) {
+    const savedNotifs = JSON.parse(localStorage.getItem('era_notifs_' + targetId) || '[]');
+    savedNotifs.unshift(notif);
+    localStorage.setItem('era_notifs_' + targetId, JSON.stringify(savedNotifs.slice(0, 50)));
+  }
+
   renderNotifBadge();
 }
