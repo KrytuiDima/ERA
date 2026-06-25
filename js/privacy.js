@@ -38,10 +38,10 @@ const PrivacyManager = {
     if (rel === 'OWNER') return true;
     if (rel === 'BLOCKED') return false;
 
-    const privacy = owner.privacy_state || 'PUBLIC';
+    const privacy = owner.privacy_state || owner.privacy || 'PUBLIC';
 
-    if (privacy === 'PUBLIC') return true;
-    if (privacy === 'PRIVATE') return rel === 'FOLLOWER' || rel === 'CLOSE_FRIEND';
+    if (privacy === 'PUBLIC' || privacy === 'public') return true;
+    if (privacy === 'PRIVATE' || privacy === 'private') return rel === 'FOLLOWER' || rel === 'CLOSE_FRIEND' || rel === 'OWNER';
 
     return false;
   },

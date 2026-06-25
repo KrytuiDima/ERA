@@ -15,7 +15,8 @@ ${grouped.length === 0
   ? `<div class="empty-state"><div class="empty-ico">🔔</div><div class="empty-txt">${t('notif.empty')}</div></div>`
   : grouped.map((n, i) => renderNotifRow(n, i)).join('')}`;
 
-  // Автоматично позначаємо всі як прочитані (маркери зникнуть при наступному рендері або оновленні)
+  // Автоматично позначаємо всі як прочитані (Module 4)
+  // Маркери зникнуть при наступному рендері, коли користувач просто відкрив вкладку
   NOTIFS.forEach(n => n.unread = false);
   renderNotifBadge();
 }
@@ -97,13 +98,11 @@ function renderNotifRow(n, idx) {
   <!-- Маркер новизни (крапка кольору вайбу юзера) -->
   ${n.unread ? `<div style="position:absolute; left:5px; top:50%; transform:translateY(-50%); width:6px; height:6px; border-radius:50%; background:${dotColor}; box-shadow:0 0 6px ${dotColor}"></div>` : ''}
 
-  <!-- Зона A: Аватар -> Профіль -->
   <div style="flex-shrink:0; cursor:pointer" onclick="renderFullProfile('${u.id}')">
     ${avatarHTML(u, 40, { friend: true })}
   </div>
 
-  <!-- Зона B: Текст -> Пост -->
-  <div style="flex:1; min-width:0; cursor:pointer" onclick="${post ? `expandPost('${post.id}')` : ''}">
+  <div style="flex:1; min-width:0; cursor:pointer" onclick="${post ? `expandPost('${post.id}', null, ${n.type==='comment'?'\''+n.id+'\'':'null'})` : ''}">
     <div style="font-size:13px; color:var(--t1); line-height:1.4">${text}</div>
     <div style="font-size:10px; color:var(--t3); margin-top:3px">${fmtTime(n.ts)}</div>
     ${actionBtns}
@@ -111,8 +110,7 @@ function renderNotifRow(n, idx) {
 
   ${followBackBtn}
 
-  <!-- Зона C: Прев'ю поста -> Лайтбокс -->
-  ${post ? `<div style="width:40px; height:40px; border-radius:8px; overflow:hidden; flex-shrink:0; background:${postBg}; cursor:pointer" onclick="expandPost('${post.id}')">
+  ${post ? `<div style="width:40px; height:40px; border-radius:8px; overflow:hidden; flex-shrink:0; background:${postBg}; cursor:pointer" onclick="expandPost('${post.id}', null, ${n.type==='comment'?'\''+n.id+'\'':'null'})">
     ${postImg ? `<img src="${postImg}" style="width:100%; height:100%; object-fit:cover">` : ''}
   </div>` : ''}
 </div>`;

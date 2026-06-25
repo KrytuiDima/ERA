@@ -75,7 +75,7 @@ function getPostImages(post) {
   return null;
 }
 
-// Форматування відносного часу (щойно, 5 хв тому, вчора тощо)
+// Форматування відносного часу (щойно, 5 хв тому, вчора тощо) (Module 5)
 // Працює для всіх мов через систему перекладів t()
 function fmtTime(ts) {
   const d = Date.now() - ts;
@@ -99,7 +99,9 @@ function fmtTime(ts) {
   
   // Для старих постів показуємо дату
   const date = new Date(ts);
-  return date.toLocaleDateString(APP.lang === 'uk' ? 'uk-UA' : (APP.lang === 'ru' ? 'ru-RU' : 'en-US'), {
+  const lang = APP.lang || 'en';
+  const locale = lang === 'uk' ? 'uk-UA' : (lang === 'ru' ? 'ru-RU' : 'en-US');
+  return date.toLocaleDateString(locale, {
     day: 'numeric', month: 'short'
   });
 }
