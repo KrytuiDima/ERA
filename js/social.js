@@ -61,7 +61,7 @@ async function cancelFollowRequest(uid) {
 function _removeRequestNotif(fromUid) {
   const before=NOTIFS.length;
   // Видаляємо всі нотіфікації про запити від цього юзера
-  NOTIFS.splice(0, NOTIFS.length, ...NOTIFS.filter(n=>!(n.userId===fromUid&&n.type==='request')));
+  NOTIFS.splice(0, NOTIFS.length, ...NOTIFS.filter(n=>!(n.userId===fromUid && (n.type==='request' || n.type==='follow'))));
   if (NOTIFS.length!==before) renderNotifBadge();
 }
 
@@ -85,15 +85,18 @@ async function toggleFollowUser(uid, btn) {
 }
 
 // ── Approve / Decline ─────────────────────────────────────
-// Схвалення запиту: Дія 1 — Дозволити перегляд
-// Це дає користувачу статус підписника та доступ до контенту
+// Схвалення запиту (Module 1): Дія 1 — Дозволити перегляд
+// Це дає користувачу статус підписника та доступ до контенту, прибираючи екран із замком.
 async function approveRequest(fromUid) {
   FOLLOWERS.set(fromUid, true);
   REQUESTS.delete(fromUid);
 
   // Оновлюємо статус у списку сповіщень
   const n = NOTIFS.find(x => x.userId === fromUid && x.type === 'request');
-  if (n) n._approved = true;
+  if (n) {
+    n._approved = true;
+    n.unread = false; // Позначаємо як прочитане після дії
+  }
 
   // Надсилаємо сповіщення про схвалення
   addNotif({ type: 'approved', fromUid: APP.user.id, toUid: fromUid });
@@ -107,9 +110,24 @@ async function approveRequest(fromUid) {
 }
 
 // Крок 2 — Підписатися у відповідь (стають друзями)
+// Дія 2 стає доступною лише після Дії 1. Коли підписка стає взаємною, статус — "Друзі".
 async function followBack(uid) {
+  // Додаткова перевірка: чи вже дозволено перегляд (Дія 1)
+  if (FOLLOWERS.get(uid) !== true) {
+     // У реальній системі тут може бути виклик API, але для SPA імітуємо послідовність
+     await approveRequest(uid);
+  }
+
   await followUser(uid);
+
+  // Якщо після followUser вони стали друзями (isFriend), додаємо сповіщення
+  if (isFriend(uid)) {
+    const user = getUser(uid);
+    showToast(t('social.nowFriends', { user: user.username }));
+  }
+
   if (APP.view === 'notif') renderNotif();
+  if (APP.view === 'profile') renderProfile(uid);
 }
 
 async function declineRequest(fromUid) {
@@ -204,7 +222,7 @@ function showPinReplaceDialog(newPid) {
   document.body.appendChild(lb);
 }
 
-// Заміна одного закріпленого поста іншим
+// Заміна одного закріпленого поста іншим (Module 5)
 async function replacePinWith(oldPid,newPid) {
   if (!APP.user) return;
   const pinned=APP.user.pinnedPosts||[];

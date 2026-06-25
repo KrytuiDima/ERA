@@ -24,12 +24,12 @@ async function onPostFile(e) {
     r.readAsDataURL(f);
   });
 
-  // Для першого фото завжди відкриваємо кропер 4:5
+  // Для першого фото завжди відкриваємо Media Studio з пропорціями 4:5
   const firstSrc = await readFile(files[0]);
   
-  showCropTool(firstSrc, async (cropped) => {
+  openStudio(firstSrc, async (cropped) => {
     if (files.length > 1) {
-      // Якщо вибрано кілька фото — інші додаються автоматично (можна розширити до кропу всіх)
+      // Якщо вибрано кілька фото — інші додаються автоматично
       const rest = await Promise.all(files.slice(1).map(readFile));
       POST_IMGS = [...POST_IMGS, cropped, ...rest].slice(0, 10);
     } else {

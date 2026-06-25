@@ -68,7 +68,7 @@ function renderPostCard(post, delay = 0) {
     imgContent = `<div class="carousel-track" id="ct-${post.id}">${imgs.map(i => `<div class="carousel-slide"><img src="${i}" alt="" draggable="false"></div>`).join('')}</div><div class="carousel-dots" id="cd-${post.id}">${imgs.map((_, i) => `<div class="c-dot${i === 0 ? ' on' : ''}"></div>`).join('')}</div><div class="carousel-ctr" id="cc-${post.id}">1/${imgs.length}</div>`;
   }
 
-  // Акцент для друзів: неон кольору ВЛАСНОГО вайбу
+  // Акцент для друзів: неон кольору ВЛАСНОГО вайбу (Module 1)
   const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff' });
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
   const friendMark = frnd
@@ -245,7 +245,7 @@ function renderCmt(c) {
   const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff' });
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
 
-  return `<div class="cmt-item">
+  return `<div class="cmt-item" id="cmt-${c.id}">
   <div class="cmt-ava" style="cursor:pointer" onclick="openUserCard('${u.id}')">${avatarHTML(u, 30, { friend: true })}</div>
   <div class="cmt-bwrap">
     <div>

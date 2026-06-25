@@ -44,7 +44,7 @@ function renderProfile(uid) {
   // Формування HTML профілю
   document.getElementById('feed-container').innerHTML = `
 <div class="profile-cover" ${own?`onclick="document.getElementById('pban-f').click()" title="${t('profile.changeBanner')}"`:''}>
-  <div class="profile-cover-inner">${bannerImg || makeVibeCode(vibe,u.id,600,120)}</div>
+  <div class="profile-cover-inner">${bannerImg || makeVibeCode(vibe,u.id,600,120, {friend: true})}</div>
   <div class="profile-cover-fade"></div>
   <div class="profile-cover-lbl">${t('profile.vibe')}</div>
   ${own?`<input type="file" id="pban-f" accept="image/*" class="hidden" onchange="changeBanner(event)">`:''}
@@ -87,7 +87,7 @@ function renderProfile(uid) {
   
   <div class="vibe-sig">
     <span style="font-family:var(--mono);font-size:9px;color:var(--t3);letter-spacing:.08em">${t('profile.vibe')}</span>
-    <div class="vibe-sig-bar">${makeVibeCode(vibe,u.id,200,18)}</div>
+    <div class="vibe-sig-bar">${makeVibeCode(vibe,u.id,200,18, {friend: true})}</div>
     <span style="font-family:var(--mono);font-size:8px;color:var(--t3)">${vibe}</span>
   </div>
 </div>
@@ -118,13 +118,13 @@ function renderFullProfile(uid) {
   renderProfile(uid);
 }
 
-// Зміна аватара з використанням кропера (1:1)
+// Зміна аватара з використанням Media Studio (1:1)
 async function changeAva(e) {
   const f=e.target.files[0]; if(!f) return;
   const r=new FileReader();
   r.onload=ev=>{
-    // Викликаємо кропер з пропорціями 1:1
-    showCropTool(ev.target.result, async res => {
+    // Викликаємо Media Studio з пропорціями 1:1
+    openStudio(ev.target.result, async res => {
       APP.user.avatar = res; 
       await saveUserData();
       document.getElementById('sb-ava').innerHTML = avatarHTML(APP.user,34);
@@ -136,13 +136,13 @@ async function changeAva(e) {
   r.readAsDataURL(f);
 }
 
-// Зміна банера профілю з використанням кропера (16:9)
+// Зміна банера профілю з використанням Media Studio (16:9)
 async function changeBanner(e) {
   const f=e.target.files[0]; if(!f) return;
   const r=new FileReader();
   r.onload=ev=>{
-    // Викликаємо кропер з пропорціями 16:9
-    showCropTool(ev.target.result, async res => {
+    // Викликаємо Media Studio з пропорціями 16:9
+    openStudio(ev.target.result, async res => {
       APP.user.banner = res; 
       await saveUserData();
       renderProfile(APP.user.id); 
@@ -171,7 +171,7 @@ function openUserCard(uid) {
 
   document.getElementById('uc-body').innerHTML=`
 <div class="uc-cover">
-  <div class="uc-cover-inner">${makeVibeCode(u.baseColor,u.id,400,80)}</div>
+  <div class="uc-cover-inner">${makeVibeCode(u.baseColor,u.id,400,80, {friend: true})}</div>
   <div class="uc-cover-fade"></div>
 </div>
 <div class="uc-body">

@@ -36,10 +36,10 @@ function _closeTopModal(fromPopState = false) {
     if (!fromPopState && _histDepth > 0) { _histDepth--; history.back(); }
     return;
   }
-  // 3. Фото-редактор (Кропер)
-  const cropModal = document.getElementById('crop-modal');
-  if (cropModal && !cropModal.classList.contains('hidden')) {
-    cancelCrop(fromPopState);
+  // 3. Фото-редактор (Studio)
+  const studio = document.getElementById('studio');
+  if (studio && !studio.classList.contains('hidden')) {
+    closeStudio(fromPopState);
     return;
   }
   // 4. Стандартні Overlay (Створення поста, Коментарі, Профіль)
@@ -106,7 +106,7 @@ function closeModal(id) {
 function ovClose(e, id) { if(e.target===document.getElementById(id)) closeModal(id); }
 
 // ── Sheet drag-to-close (Фізика шторки) ───────────────────
-// Дозволяє закривати модальні вікна свайпом вниз за верхню частину (Handle bar)
+// Дозволяє закривати модальні вікна свайпом вниз за верхню частину (Handle bar) (Module 3)
 function _makeDraggable(handleId, sheetId, overlayId) {
   const handle = document.getElementById(handleId);
   const sheet = document.getElementById(sheetId);
@@ -128,8 +128,14 @@ function _makeDraggable(handleId, sheetId, overlayId) {
     const y = e.touches ? e.touches[0].clientY : e.clientY;
     const dy = y - sy;
     if (dy > 0) {
-      // Фізика опору: чим далі тягнемо, тим повільніше рухається (опціонально)
-      sheet.style.transform = `translateY(${dy}px)`;
+      // Фізика опору: чим далі тягнемо, тим повільніше рухається (Module 3)
+      const resistance = 1 + (dy / 200);
+      sheet.style.transform = `translateY(${dy / resistance}px)`;
+
+      // Візуально затінюємо фон залежно від прогресу
+      const opacity = Math.max(0.4, 0.75 - dy / 800);
+      document.getElementById(overlayId).style.backgroundColor = `rgba(0,0,0,${opacity})`;
+
       if (e.cancelable) e.preventDefault();
     }
   };
@@ -149,6 +155,7 @@ function _makeDraggable(handleId, sheetId, overlayId) {
       _animateSheetOut(document.getElementById(overlayId));
     } else {
       sheet.style.transform = '';
+      document.getElementById(overlayId).style.backgroundColor = '';
     }
   };
 
@@ -298,127 +305,225 @@ function showPostMenu(pid,x,y) {
   document.body.appendChild(menu);
 }
 
-// ── Crop tool (Медіа-редактор) ─────────────────────────────
-// Професійний фронтенд-кропер для постів, аватарок та банерів
-let _cropCallback = null, _cropX = 0, _cropY = 0, _cropScale = 1, _cropRotate = 0;
-let _cropDragSX = 0, _cropDragSY = 0, _cropDragOX = 0, _cropDragOY = 0, _cropDragging = false;
-let _cropPinchDist = 0, _cropOptions = {};
+// ── Media Studio (Медіа-редактор) ─────────────────────────
+// Професійний інструмент для обрізки та редагування фото (Module 2)
+let _stCallback = null, _stImage = null, _stRatio = 4/5, _stRound = false;
+let _stX = 0, _stY = 0, _stScale = 1, _stRotate = 0;
+let _stDragSX = 0, _stDragSY = 0, _stDragOX = 0, _stDragOY = 0, _stDragging = false;
 
-// Відкриття редактора фото (пропорції 4:5, 1:1 або 16:9)
-function showCropTool(src, callback, opts = {}) {
-  _cropCallback = callback;
-  _cropX = 0; _cropY = 0; _cropScale = 1; _cropRotate = 0;
-  _cropOptions = { ratio: 4 / 5, round: false, ...opts };
+// Відкриття студії: src — шлях до фото, callback — функція після завершення, opts — налаштування пропорцій
+function openStudio(src, callback, opts = {}) {
+  _stCallback = callback;
+  const options = { ratio: 4/5, round: false, ...opts };
+  _stRatio = options.ratio;
+  _stRound = options.round;
 
-  const modal = document.getElementById('crop-modal');
-  modal.classList.remove('hidden');
+  const studio = document.getElementById('studio');
+  if (!studio) return;
+  studio.classList.remove('hidden');
   lockScroll();
-  eraPush('crop');
+  eraPush('studio');
 
-  const img = document.getElementById('crop-img');
-  const zS = document.getElementById('crop-zoom'), rS = document.getElementById('crop-rotate');
-  if (zS) zS.value = 1;
-  if (rS) rS.value = 0;
-
-  img.onload = () => {
-    _fitCrop(img);
-    _drawCropMask();
+  _stImage = new Image();
+  _stImage.onload = () => {
+    _stFit();
+    _stDraw();
+    setStudioTool('crop');
   };
-  img.src = src;
-  _initCropEvents();
+  _stImage.src = src;
+  _initStudioEvents();
 }
 
-function _fitCrop(img) {
-  const stage=document.getElementById('crop-stage');
-  const fw=stage.clientWidth*.88, fh=fw/_cropOptions.ratio;
-  _cropScale=Math.max(fw/img.naturalWidth, fh/img.naturalHeight);
-  _cropX=0; _cropY=0;
-  img.style.width=img.naturalWidth+'px'; img.style.height=img.naturalHeight+'px';
-  const zS=document.getElementById('crop-zoom'); if(zS){ zS.value=_cropScale; zS.min=_cropScale*.5; zS.max=_cropScale*5; }
-  _applyTransform(img);
+// Закриття студії без збереження
+function closeStudio(fromPopState = false) {
+  const studio = document.getElementById('studio');
+  if (!studio) return;
+  studio.classList.add('hidden');
+  unlockScroll();
+  _stCallback = null;
+
+  // Прибираємо глобальні обробники, щоб не було витоків
+  window.removeEventListener('mousemove', _stOnMove);
+  window.removeEventListener('mouseup', _stOnEnd);
+
+  if (!fromPopState && _histDepth > 0) { _histDepth--; history.back(); }
 }
 
-function _applyTransform(img) {
-  if(!img) img=document.getElementById('crop-img');
-  if(!img) return;
-  img.style.transform=`translate(calc(-50% + ${_cropX}px),calc(-50% + ${_cropY}px)) scale(${_cropScale}) rotate(${_cropRotate}deg)`;
-  img.style.left='50%'; img.style.top='50%'; img.style.position='absolute';
+// Підгонка розміру канвасу та початкового масштабу фото
+function _stFit() {
+  const stage = document.getElementById('studio-stage');
+  const canvas = document.getElementById('studio-canvas');
+  if (!stage || !canvas) return;
+  const sw = stage.clientWidth, sh = stage.clientHeight;
+
+  // Визначаємо розмір канвасу згідно з пропорціями (наприклад, 4:5)
+  let cw = sw * 0.88, ch = cw / _stRatio;
+  if (ch > sh * 0.8) { ch = sh * 0.8; cw = ch * _stRatio; }
+
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = cw * dpr;
+  canvas.height = ch * dpr;
+  canvas.style.width = cw + 'px';
+  canvas.style.height = ch + 'px';
+
+  // Початковий масштаб, щоб фото заповнило всю рамку
+  _stScale = Math.max(cw / _stImage.naturalWidth, ch / _stImage.naturalHeight);
+  _stX = 0; _stY = 0; _stRotate = 0;
+
+  const zS = document.getElementById('studio-zoom'), rS = document.getElementById('studio-rotate');
+  if (zS) { zS.value = _stScale; zS.min = _stScale * 0.5; zS.max = _stScale * 5; }
+  if (rS) { rS.value = 0; }
 }
 
-function _drawCropMask() {
-  const stage=document.getElementById('crop-stage'), mask=document.getElementById('crop-mask');
-  const sw=stage.clientWidth, sh=stage.clientHeight;
-  const fw=Math.round(sw*.88), fh=Math.round(fw/_cropOptions.ratio);
-  const fx=Math.round((sw-fw)/2), fy=Math.round((sh-fh)/2);
-  mask.innerHTML=`
-    <div class="crop-shade" style="top:0;left:0;right:0;height:${fy}px"></div>
-    <div class="crop-shade" style="top:${fy}px;left:0;width:${fx}px;height:${fh}px"></div>
-    <div class="crop-shade" style="top:${fy}px;right:0;width:${fx}px;height:${fh}px"></div>
-    <div class="crop-shade" style="bottom:0;left:0;right:0;height:${sh-fy-fh}px"></div>
-    <div class="crop-frame-border${_cropOptions.round?' round':''}" style="left:${fx}px;top:${fy}px;width:${fw}px;height:${fh}px">
-      ${_cropOptions.round?'':`
-      <div class="crop-corner tl"></div><div class="crop-corner tr"></div>
-      <div class="crop-corner bl"></div><div class="crop-corner br"></div>
-      <div class="crop-grid-line" style="position:absolute;left:${Math.round(fw/3)}px;top:0;width:1px;height:100%"></div>
-      <div class="crop-grid-line" style="position:absolute;left:${Math.round(fw*2/3)}px;top:0;width:1px;height:100%"></div>
-      <div class="crop-grid-line" style="position:absolute;left:0;top:${Math.round(fh/3)}px;width:100%;height:1px"></div>
-      <div class="crop-grid-line" style="position:absolute;left:0;top:${Math.round(fh*2/3)}px;width:100%;height:1px"></div>
-      `}
-    </div>`;
+// Малювання фото на канвасі з урахуванням трансформацій
+function _stDraw() {
+  const canvas = document.getElementById('studio-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.save();
+  // Переносимо центр координат в центр канвасу
+  ctx.translate(canvas.width / 2 + _stX * dpr, canvas.height / 2 + _stY * dpr);
+  ctx.rotate(_stRotate * Math.PI / 180);
+  ctx.scale(_stScale * dpr, _stScale * dpr);
+  // Малюємо фото
+  ctx.drawImage(_stImage, -_stImage.naturalWidth / 2, -_stImage.naturalHeight / 2);
+  ctx.restore();
+
+  // Якщо це аватарка, робимо прев'ю круглим
+  canvas.style.borderRadius = _stRound ? '50%' : '0';
 }
 
-function _initCropEvents() {
-  const s=document.getElementById('crop-stage'), img=document.getElementById('crop-img');
-  s.onmousedown = e=>{ _cropDragging=true; _cropDragSX=e.clientX; _cropDragSY=e.clientY; _cropDragOX=_cropX; _cropDragOY=_cropY; s.classList.add('dragging'); };
-  window.onmousemove = e=>{ if(!_cropDragging)return; _cropX=_cropDragOX+(e.clientX-_cropDragSX); _cropY=_cropDragOY+(e.clientY-_cropDragSY); _applyTransform(); };
-  window.onmouseup = ()=>{ _cropDragging=false; s.classList.remove('dragging'); };
+function _stOnMove(e) {
+  if (!_stDragging) return;
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  _stX = _stDragOX + (clientX - _stDragSX);
+  _stY = _stDragOY + (clientY - _stDragSY);
+  _stDraw();
+  if (e.touches && e.cancelable) e.preventDefault();
+}
 
-  s.onwheel = e=>{ e.preventDefault(); _cropScale=Math.max(_cropScale*.2,Math.min(_cropScale*10,_cropScale-(e.deltaY>0?.05*_cropScale:-.05*_cropScale))); const zS=document.getElementById('crop-zoom'); if(zS)zS.value=_cropScale; _applyTransform(); };
+function _stOnEnd() { _stDragging = false; }
 
-  s.ontouchstart = e=>{
-    if(e.touches.length===1){ _cropDragging=true; _cropDragSX=e.touches[0].clientX; _cropDragSY=e.touches[0].clientY; _cropDragOX=_cropX; _cropDragOY=_cropY; }
-    if(e.touches.length===2){ _cropPinchDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); }
+// Ініціалізація подій перетягування та повзунків
+function _initStudioEvents() {
+  const stage = document.getElementById('studio-stage');
+  if (!stage) return;
+
+  const onStart = e => {
+    _stDragging = true;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    _stDragSX = clientX; _stDragSY = clientY;
+    _stDragOX = _stX; _stDragOY = _stY;
   };
-  s.ontouchmove = e=>{
-    if(e.touches.length===1&&_cropDragging){ _cropX=_cropDragOX+(e.touches[0].clientX-_cropDragSX); _cropY=_cropDragOY+(e.touches[0].clientY-_cropDragSY); _applyTransform(); }
-    if(e.touches.length===2){ e.preventDefault(); const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); _cropScale=Math.max(_cropScale*.2,Math.min(_cropScale*10,_cropScale*(d/_cropPinchDist))); _cropPinchDist=d; const zS=document.getElementById('crop-zoom'); if(zS)zS.value=_cropScale; _applyTransform(); }
-  };
-  s.ontouchend = ()=>{ _cropDragging=false; };
 
-  const zS=document.getElementById('crop-zoom'), rS=document.getElementById('crop-rotate');
-  if(zS) zS.oninput = e=>{ _cropScale=parseFloat(e.target.value); _applyTransform(); };
-  if(rS) rS.oninput = e=>{ _cropRotate=parseFloat(e.target.value); _applyTransform(); };
+  stage.onmousedown = onStart;
+  window.addEventListener('mousemove', _stOnMove);
+  window.addEventListener('mouseup', _stOnEnd);
+
+  stage.addEventListener('touchstart', onStart, {passive: true});
+  stage.addEventListener('touchmove', _stOnMove, {passive: false});
+  stage.addEventListener('touchend', _stOnEnd);
+
+  const zS = document.getElementById('studio-zoom'), rS = document.getElementById('studio-rotate');
+  if (zS) zS.oninput = e => { _stScale = parseFloat(e.target.value); _stDraw(); };
+  if (rS) rS.oninput = e => { _stRotate = parseFloat(e.target.value); _stDraw(); };
 }
 
-function applyCrop() {
-  const img=document.getElementById('crop-img'), stage=document.getElementById('crop-stage');
-  const sw=stage.clientWidth, sh=stage.clientHeight;
-  const fw=Math.round(sw*.88), fh=Math.round(fw/_cropOptions.ratio);
-  const fx=(sw-fw)/2, fy=(sh-fh)/2;
-  const canvas=document.createElement('canvas');
-  const OUT=800; canvas.width=OUT; canvas.height=Math.round(OUT/_cropOptions.ratio);
-  const ctx=canvas.getContext('2d');
-
-  ctx.translate(canvas.width/2, canvas.height/2);
-  ctx.rotate(_cropRotate * Math.PI / 180);
-  ctx.scale(_cropScale, _cropScale);
-
-  // Calculate relative position
-  const drawW = img.naturalWidth;
-  const drawH = img.naturalHeight;
-  const dx = (_cropX - (sw/2 - (fx + fw/2))) / _cropScale;
-  const dy = (_cropY - (sh/2 - (fy + fh/2))) / _cropScale;
-
-  ctx.drawImage(img, dx - drawW/2, dy - drawH/2, drawW, drawH);
-
-  const result=canvas.toDataURL('image/jpeg',.9);
-  document.getElementById('crop-modal').classList.add('hidden');
-  if(_cropCallback) _cropCallback(result);
-  _cropCallback=null;
+// Перемикання інструментів (Crop, Brush, Text)
+function setStudioTool(tool) {
+  document.querySelectorAll('.studio-tool').forEach(b => b.classList.toggle('active', b.id === 'st-'+tool));
+  document.querySelectorAll('.studio-panel').forEach(p => p.classList.add('hidden'));
+  document.getElementById('studio-panel-'+tool)?.classList.remove('hidden');
 }
 
-function cancelCrop(fromPopState=false) {
-  document.getElementById('crop-modal').classList.add('hidden');
-  _cropCallback=null;
-  if(!fromPopState && _histDepth > 0) { _histDepth--; history.back(); }
+// Фінальна обрізка та повернення результату (Base64)
+function finishStudio() {
+  const canvas = document.createElement('canvas');
+  const OUT_SIZE = 1080; // Висока роздільна здатність для збереження якості
+  canvas.width = OUT_SIZE;
+  canvas.height = Math.round(OUT_SIZE / _stRatio);
+  const ctx = canvas.getContext('2d');
+
+  const viewWidth = document.getElementById('studio-canvas').clientWidth;
+  const ratio = OUT_SIZE / viewWidth;
+
+  ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.rotate(_stRotate * Math.PI / 180);
+
+  const s = _stScale * ratio;
+  ctx.scale(s, s);
+
+  // Розраховуємо зміщення відносно центру
+  const dx = (_stX * ratio) / s;
+  const dy = (_stY * ratio) / s;
+
+  ctx.drawImage(_stImage, dx - _stImage.naturalWidth / 2, dy - _stImage.naturalHeight / 2);
+
+  const result = canvas.toDataURL('image/jpeg', 0.9);
+  const cb = _stCallback;
+  closeStudio();
+  if (cb) cb(result);
+}
+
+function studioUndo() {
+  showToast("Undo not implemented");
+}
+
+// ── Search functionality (Module 5) ────────────────────────
+// Простий та швидкий пошук за нікнеймами користувачів
+async function renderExplore(q) {
+  const sq = q.toLowerCase();
+  // Отримуємо всіх користувачів (SU — вшиті, localStorage — зареєстровані)
+  const stored = JSON.parse(localStorage.getItem('era_users') || '[]');
+  const all = [...SU, ...stored.filter(u => !SU.find(s => s.id === u.id))];
+  const filtered = sq ? all.filter(u => u.username.toLowerCase().includes(sq) || (u.displayName || '').toLowerCase().includes(sq)) : all;
+
+  const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff' });
+  const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
+
+  document.getElementById('feed-container').innerHTML = `
+<div style="padding:12px 12px 6px">
+  <input class="explore-inp" id="explore-inp" placeholder="${t('explore.placeholder')}" value="${esc(q)}" oninput="renderExplore(this.value)">
+</div>
+${filtered.length === 0
+  ? `<div class="empty-state"><div class="empty-ico">🔍</div><div class="empty-txt">${t('explore.notFound')}</div></div>`
+  : `<div style="padding: 4px; display: flex; flex-direction: column; gap: 6px">
+    ${filtered.map(u => {
+      const frnd = isFriend(u.id);
+      const status = getFollowStatus(u.id);
+      const isF = status === 'following';
+      const isReq = status === 'requested';
+
+      let statusTxt = '';
+      if (frnd) statusTxt = t('profile.friends');
+      else if (isF) statusTxt = t('profile.youFollow');
+      else if (isReq) statusTxt = t('profile.requested');
+
+      return `<div class="rp-user" style="background: var(--s1); border: 1px solid var(--b1); padding: 12px; border-radius:14px; transition: transform .2s" onclick="openUserCard('${u.id}')">
+        <!-- Аватар -->
+        <div style="width:46px; height:46px; flex-shrink:0; position:relative">
+          ${avatarHTML(u, 46, { friend: true })}
+          ${isUserPrivate(u.id) ? `<div style="position:absolute; bottom:-2px; right:-2px; font-size:10px; background:var(--s2); border-radius:50%; padding:2px; border:1px solid var(--b1)">🔒</div>` : ''}
+        </div>
+        <!-- Інфо та статус -->
+        <div style="flex:1; min-width:0; margin-left:4px">
+          <div style="font-size:14px; font-weight:700; color:var(--t1)">@${esc(u.username)}</div>
+          <div style="font-size:12px; color:var(--t2)">${esc(u.displayName || '') || '&nbsp;'}</div>
+          ${statusTxt ? `<div style="font-size:10px; font-weight:600; color:${frnd ? myCols[0] : 'var(--t3)'}; margin-top:3px">${statusTxt}</div>` : ''}
+        </div>
+        <!-- Vibe Code -->
+        <div style="width:64px; height:32px; border-radius:6px; overflow:hidden; border:1px solid var(--b1); flex-shrink:0">
+          ${makeVibeCode(u.baseColor, u.id, 64, 32, { friend: true })}
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`}`;
+
+  const inp = document.getElementById('explore-inp');
+  if (inp && q) { const l = q.length; inp.setSelectionRange(l, l); }
 }
