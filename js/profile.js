@@ -96,8 +96,8 @@ function renderProfile(uid) {
 ${!canSee
   ? `<div class="empty-state" style="margin-top:40px; animation:fadeIn .3s ease">
       <div class="lock-screen-icon" style="font-size:48px; margin-bottom:16px">🔒</div>
-      <div class="empty-txt" style="font-size:14px; font-weight:600">Закритий акаунт</div>
-      <div class="empty-txt" style="font-size:12px; color:var(--t3); margin-top:4px">Підпишись, щоб бачити пости та медіа</div>
+      <div class="empty-txt" style="font-size:14px; font-weight:600">${t('social.privateAcc')}</div>
+      <div class="empty-txt" style="font-size:12px; color:var(--t3); margin-top:4px">${t('social.privateAccMsg')}</div>
     </div>`
   : sorted.length===0
     ? `<div class="empty-state"><div class="empty-ico">📸</div><div class="empty-txt">${own?t('post.emptyPosts'):t('post.emptyOtherPosts')}</div></div>`
@@ -124,7 +124,7 @@ async function changeAva(e) {
   const r=new FileReader();
   r.onload=ev=>{
     // Викликаємо кропер з пропорціями 1:1
-    showCropTool(ev.target.result, async res => {
+    openStudio(ev.target.result, async res => {
       APP.user.avatar = res; 
       await saveUserData();
       document.getElementById('sb-ava').innerHTML = avatarHTML(APP.user,34);
@@ -142,7 +142,7 @@ async function changeBanner(e) {
   const r=new FileReader();
   r.onload=ev=>{
     // Викликаємо кропер з пропорціями 16:9
-    showCropTool(ev.target.result, async res => {
+    openStudio(ev.target.result, async res => {
       APP.user.banner = res; 
       await saveUserData();
       renderProfile(APP.user.id); 

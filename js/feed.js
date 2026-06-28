@@ -245,7 +245,7 @@ function renderCmt(c) {
   const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff' });
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
 
-  return `<div class="cmt-item">
+  return `<div class="cmt-item" id="cmt-${c.id}">
   <div class="cmt-ava" style="cursor:pointer" onclick="openUserCard('${u.id}')">${avatarHTML(u, 30, { friend: true })}</div>
   <div class="cmt-bwrap">
     <div>
