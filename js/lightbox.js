@@ -1,6 +1,6 @@
 // js/lightbox.js — Lightbox with physics (Перегляд медіа)
 
-function expandPost(pid, ctx) {
+function expandPost(pid, ctx, focusCmtId = null) {
   const p = POSTS.find(x=>x.id===pid);
   if (p && !SESSION_VIEWS.has('lb-'+pid)) { SESSION_VIEWS.add('lb-'+pid); p.views=(p.views||0)+1; }
   if (ctx==='profile' && APP.profileUid) {
@@ -13,6 +13,17 @@ function expandPost(pid, ctx) {
   if (LB_IDX<0) LB_IDX=0;
   lockScroll(); eraPush('lightbox');
   buildLightbox();
+
+  if (focusCmtId) {
+    setTimeout(() => {
+      const cmt = document.getElementById('cmt-' + focusCmtId);
+      if (cmt) {
+        cmt.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        cmt.style.background = 'rgba(255,255,255,0.05)';
+        setTimeout(() => cmt.style.background = '', 2000);
+      }
+    }, 500);
+  }
 }
 
 function _closeLightboxInternal(fromPopState=false) {
@@ -79,6 +90,14 @@ function buildLightbox(dir=0) {
         ${p.views?`<span style="font-size:10px;color:var(--t3);display:flex;align-items:center;gap:2px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="12" height="12"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>${fmtN(p.views)}</span>`:''}
       </div>
       ${p.desc?`<div class="lb-desc">${tags(esc(p.desc))}</div>`:''}
+
+      <!-- Comments Area in Lightbox -->
+      <div class="lb-comments" style="margin-top:12px; max-height:200px; overflow-y:auto; border-top:1px solid var(--b1); padding-top:10px">
+        ${p.comments.length === 0
+          ? `<div style="font-size:11px; color:var(--t3); text-align:center; padding:10px 0">${t('post.firstComment')}</div>`
+          : p.comments.map(c => renderCmt(c)).join('')
+        }
+      </div>
       <div class="lb-reactions">
         <div class="reactions-row" style="padding:8px 0 4px">
           <button class="like-btn${p.liked?' liked':''}" id="lb-lb-${p.id}" onclick="toggleLike('${p.id}')">

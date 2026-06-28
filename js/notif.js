@@ -21,19 +21,28 @@ ${grouped.length === 0
 }
 
 function _groupNotifs(notifs) {
-  // Group: same user liked multiple posts → show once
-  const out = [], seen = new Set();
-  for (const n of notifs) {
-    if (seen.has(n.id)) continue;
-    if (n.type==='like') {
-      const sameUser = notifs.filter(x=>x.userId===n.userId&&x.type==='like'&&!seen.has(x.id));
-      if (sameUser.length>1) {
-        const merged = {...sameUser[0], _count:sameUser.length, _ids:sameUser.map(x=>x.id)};
-        sameUser.forEach(x=>seen.add(x.id));
-        out.push(merged); continue;
+  // Group: consecutive identical actions from the same user
+  const out = [];
+  if (!notifs.length) return out;
+
+  for (let i = 0; i < notifs.length; i++) {
+    const n = notifs[i];
+    if (n.type === 'like') {
+      let count = 1;
+      let j = i + 1;
+      while (j < notifs.length && notifs[j].userId === n.userId && notifs[j].type === 'like') {
+        count++;
+        j++;
       }
+      if (count > 1) {
+        out.push({ ...n, _count: count });
+        i = j - 1;
+      } else {
+        out.push(n);
+      }
+    } else {
+      out.push(n);
     }
-    seen.add(n.id); out.push(n);
   }
   return out;
 }
@@ -93,17 +102,23 @@ function renderNotifRow(n, idx) {
     ? `<button onclick="event.stopPropagation(); followBack('${n.userId}')" style="padding:6px 14px; border-radius:20px; border:1px solid var(--b2); background:transparent; color:var(--t1); font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap; flex-shrink:0; margin-left:auto">${isReq ? t('profile.requested') : t('notif.followBack')}</button>`
     : '';
 
+  // Click destination for text/preview
+  let clickAction = '';
+  if (n.type === 'comment') clickAction = `expandPost('${post.id}', null, '${n.commentId || ''}')`;
+  else if (post) clickAction = `expandPost('${post.id}')`;
+  else clickAction = `renderFullProfile('${u.id}')`;
+
   return `<div class="notif-row" style="display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--b1); animation:fadeUp .22s ease ${idx * 25}ms both; position: relative">
   <!-- Маркер новизни (крапка кольору вайбу юзера) -->
-  ${n.unread ? `<div style="position:absolute; left:5px; top:50%; transform:translateY(-50%); width:6px; height:6px; border-radius:50%; background:${dotColor}; box-shadow:0 0 6px ${dotColor}"></div>` : ''}
+  ${n.unread ? `<div style="position:absolute; left:6px; top:50%; transform:translateY(-50%); width:7px; height:7px; border-radius:50%; background:${dotColor}; box-shadow:0 0 8px ${dotColor}"></div>` : ''}
 
   <!-- Зона A: Аватар -> Профіль -->
-  <div style="flex-shrink:0; cursor:pointer" onclick="renderFullProfile('${u.id}')">
+  <div style="flex-shrink:0; cursor:pointer; position:relative; z-index:2" onclick="event.stopPropagation(); renderFullProfile('${u.id}')">
     ${avatarHTML(u, 40, { friend: true })}
   </div>
 
-  <!-- Зона B: Текст -> Пост -->
-  <div style="flex:1; min-width:0; cursor:pointer" onclick="${post ? `expandPost('${post.id}')` : ''}">
+  <!-- Зона B: Текст -> Пост / Профіль -->
+  <div style="flex:1; min-width:0; cursor:pointer" onclick="${clickAction}">
     <div style="font-size:13px; color:var(--t1); line-height:1.4">${text}</div>
     <div style="font-size:10px; color:var(--t3); margin-top:3px">${fmtTime(n.ts)}</div>
     ${actionBtns}
@@ -112,7 +127,7 @@ function renderNotifRow(n, idx) {
   ${followBackBtn}
 
   <!-- Зона C: Прев'ю поста -> Лайтбокс -->
-  ${post ? `<div style="width:40px; height:40px; border-radius:8px; overflow:hidden; flex-shrink:0; background:${postBg}; cursor:pointer" onclick="expandPost('${post.id}')">
+  ${post ? `<div style="width:40px; height:40px; border-radius:8px; overflow:hidden; flex-shrink:0; background:${postBg}; cursor:pointer" onclick="${clickAction}">
     ${postImg ? `<img src="${postImg}" style="width:100%; height:100%; object-fit:cover">` : ''}
   </div>` : ''}
 </div>`;

@@ -93,7 +93,10 @@ async function approveRequest(fromUid) {
 
   // Оновлюємо статус у списку сповіщень
   const n = NOTIFS.find(x => x.userId === fromUid && x.type === 'request');
-  if (n) n._approved = true;
+  if (n) {
+    n._approved = true;
+    n.type = 'follow'; // Change type to show 'Follow back' button in notifications
+  }
 
   // Надсилаємо сповіщення про схвалення
   addNotif({ type: 'approved', fromUid: APP.user.id, toUid: fromUid });
@@ -108,6 +111,9 @@ async function approveRequest(fromUid) {
 
 // Крок 2 — Підписатися у відповідь (стають друзями)
 async function followBack(uid) {
+  // Дія 2 доступна лише після Дії 1 (вже є фоловером)
+  if (FOLLOWERS.get(uid) !== true) return;
+
   await followUser(uid);
   if (APP.view === 'notif') renderNotif();
 }
