@@ -1,8 +1,19 @@
 // js/ui.js — Modal system, toast, sheets, history, carousel, crop, long press
 
 // ── Scroll lock ───────────────────────────────────────────
+// Блокуємо скрол основної сторінки при відкритті модалок
 function lockScroll()   { document.body.classList.add('scroll-locked'); }
-function unlockScroll() { document.body.classList.remove('scroll-locked'); }
+function unlockScroll() {
+  // Знімаємо блок тільки якщо немає інших відкритих оверлеїв (Module 3 Fix)
+  const anyOverlay = document.querySelector('.overlay:not(.hidden)');
+  const lightbox = document.getElementById('lightbox');
+  const studio = document.getElementById('studio');
+  const studioVisible = studio && !studio.classList.contains('hidden');
+
+  if (!anyOverlay && !lightbox && !studioVisible) {
+    document.body.classList.remove('scroll-locked');
+  }
+}
 
 // ── History API (Керування історією та кнопкою Назад) ─────
 // Модальні вікна інтегровані з історією браузера для коректної роботи кнопки "Назад"
@@ -36,10 +47,10 @@ function _closeTopModal(fromPopState = false) {
     if (!fromPopState && _histDepth > 0) { _histDepth--; history.back(); }
     return;
   }
-  // 3. Фото-редактор (Кропер)
-  const cropModal = document.getElementById('crop-modal');
-  if (cropModal && !cropModal.classList.contains('hidden')) {
-    cancelCrop(fromPopState);
+  // 3. Фото-редактор (Студія / Кропер)
+  const studioModal = document.getElementById('studio');
+  if (studioModal && !studioModal.classList.contains('hidden')) {
+    closeStudio(fromPopState);
     return;
   }
   // 4. Стандартні Overlay (Створення поста, Коментарі, Профіль)
@@ -98,6 +109,17 @@ function openModal(id) {
   if (pairs[id]) _makeDraggable(...pairs[id], id);
 }
 
+function openCreatePost() {
+  POST_IMGS = [];
+  document.getElementById('post-file').value = '';
+  document.getElementById('upload-ph').classList.remove('hidden');
+  document.getElementById('upload-grid').classList.add('hidden');
+  document.getElementById('upload-zone').classList.remove('has-imgs');
+  document.getElementById('desc-ta').value = '';
+  document.getElementById('desc-cnt').textContent = '0/300';
+  openModal('modal-create');
+}
+
 function closeModal(id) {
   const el = document.getElementById(id); if(!el) return;
   _animateSheetOut(el);
@@ -144,8 +166,8 @@ function _makeDraggable(handleId, sheetId, overlayId) {
 
     sheet.style.transition = 'transform .3s cubic-bezier(.22,1,.36,1)';
     
-    // Закриваємо, якщо потягнули більше ніж на 120px або швидкий свайп
-    if (dy > 120 || (vel > 0.6 && dy > 40)) {
+    // Закриваємо, якщо потягнули більше ніж на 120px або швидкий свайп (Module 3)
+    if (dy > 120 || (vel > 0.5 && dy > 50)) {
       _animateSheetOut(document.getElementById(overlayId));
     } else {
       sheet.style.transform = '';
@@ -201,9 +223,9 @@ function initCarousel(pid, total, isLb=false) {
       const st = isLb ? lbCarState : carousels.get(pid);
       let tx = -st.idx * wrap.clientWidth + dx;
 
-      // Rubber-band effect
+      // Rubber-band effect (Module 3)
       if((st.idx === 0 && dx > 0) || (st.idx === st.total-1 && dx < 0)) {
-        tx = -st.idx * wrap.clientWidth + dx * 0.3;
+        tx = -st.idx * wrap.clientWidth + dx * 0.35;
       }
 
       if(track) track.style.transform = `translateX(${tx}px)`;
@@ -298,127 +320,179 @@ function showPostMenu(pid,x,y) {
   document.body.appendChild(menu);
 }
 
-// ── Crop tool (Медіа-редактор) ─────────────────────────────
-// Професійний фронтенд-кропер для постів, аватарок та банерів
-let _cropCallback = null, _cropX = 0, _cropY = 0, _cropScale = 1, _cropRotate = 0;
-let _cropDragSX = 0, _cropDragSY = 0, _cropDragOX = 0, _cropDragOY = 0, _cropDragging = false;
-let _cropPinchDist = 0, _cropOptions = {};
+// ── Media Studio (Медіа-редактор / Кропер) ─────────────────
+// Професійний фронтенд-інструмент для обрізки фото (Module 2)
+let _stCallback = null, _stX = 0, _stY = 0, _stScale = 1, _stRotate = 0;
+let _stDragSX = 0, _stDragSY = 0, _stDragOX = 0, _stDragOY = 0, _stDragging = false;
+let _stPinchDist = 0, _stOptions = {};
 
-// Відкриття редактора фото (пропорції 4:5, 1:1 або 16:9)
-function showCropTool(src, callback, opts = {}) {
-  _cropCallback = callback;
-  _cropX = 0; _cropY = 0; _cropScale = 1; _cropRotate = 0;
-  _cropOptions = { ratio: 4 / 5, round: false, ...opts };
+// Відкриття Media Studio (пропорції 4:5, 1:1 або 16:9)
+function openStudio(src, callback, opts = {}) {
+  _stCallback = callback;
+  _stX = 0; _stY = 0; _stScale = 1; _stRotate = 0;
+  _stOptions = { ratio: 4 / 5, round: false, ...opts };
 
-  const modal = document.getElementById('crop-modal');
-  modal.classList.remove('hidden');
+  const studio = document.getElementById('studio');
+  studio.classList.remove('hidden');
   lockScroll();
-  eraPush('crop');
+  eraPush('studio');
 
-  const img = document.getElementById('crop-img');
-  const zS = document.getElementById('crop-zoom'), rS = document.getElementById('crop-rotate');
+  const img = document.getElementById('studio-img');
+  const zS = document.getElementById('studio-zoom'), rS = document.getElementById('studio-rotate');
   if (zS) zS.value = 1;
   if (rS) rS.value = 0;
 
   img.onload = () => {
-    _fitCrop(img);
-    _drawCropMask();
+    _fitStudio(img);
+    _drawStudioMask();
   };
   img.src = src;
-  _initCropEvents();
+  _initStudioEvents();
 }
 
-function _fitCrop(img) {
-  const stage=document.getElementById('crop-stage');
-  const fw=stage.clientWidth*.88, fh=fw/_cropOptions.ratio;
-  _cropScale=Math.max(fw/img.naturalWidth, fh/img.naturalHeight);
-  _cropX=0; _cropY=0;
-  img.style.width=img.naturalWidth+'px'; img.style.height=img.naturalHeight+'px';
-  const zS=document.getElementById('crop-zoom'); if(zS){ zS.value=_cropScale; zS.min=_cropScale*.5; zS.max=_cropScale*5; }
-  _applyTransform(img);
+function _fitStudio(img) {
+  const stage = document.getElementById('studio-stage');
+  const fw = stage.clientWidth * 0.88, fh = fw / _stOptions.ratio;
+  _stScale = Math.max(fw / img.naturalWidth, fh / img.naturalHeight);
+  _stX = 0; _stY = 0;
+  img.style.width = img.naturalWidth + 'px';
+  img.style.height = img.naturalHeight + 'px';
+  const zS = document.getElementById('studio-zoom');
+  if (zS) {
+    zS.value = _stScale;
+    zS.min = _stScale * 0.5;
+    zS.max = _stScale * 8;
+  }
+  _applyStudioTransform(img);
 }
 
-function _applyTransform(img) {
-  if(!img) img=document.getElementById('crop-img');
-  if(!img) return;
-  img.style.transform=`translate(calc(-50% + ${_cropX}px),calc(-50% + ${_cropY}px)) scale(${_cropScale}) rotate(${_cropRotate}deg)`;
-  img.style.left='50%'; img.style.top='50%'; img.style.position='absolute';
+function _applyStudioTransform(img) {
+  if (!img) img = document.getElementById('studio-img');
+  if (!img) return;
+  img.style.transform = `translate(calc(-50% + ${_stX}px), calc(-50% + ${_stY}px)) scale(${_stScale}) rotate(${_stRotate}deg)`;
+  img.style.left = '50%'; img.style.top = '50%'; img.style.position = 'absolute';
 }
 
-function _drawCropMask() {
-  const stage=document.getElementById('crop-stage'), mask=document.getElementById('crop-mask');
-  const sw=stage.clientWidth, sh=stage.clientHeight;
-  const fw=Math.round(sw*.88), fh=Math.round(fw/_cropOptions.ratio);
-  const fx=Math.round((sw-fw)/2), fy=Math.round((sh-fh)/2);
-  mask.innerHTML=`
-    <div class="crop-shade" style="top:0;left:0;right:0;height:${fy}px"></div>
-    <div class="crop-shade" style="top:${fy}px;left:0;width:${fx}px;height:${fh}px"></div>
-    <div class="crop-shade" style="top:${fy}px;right:0;width:${fx}px;height:${fh}px"></div>
-    <div class="crop-shade" style="bottom:0;left:0;right:0;height:${sh-fy-fh}px"></div>
-    <div class="crop-frame-border${_cropOptions.round?' round':''}" style="left:${fx}px;top:${fy}px;width:${fw}px;height:${fh}px">
-      ${_cropOptions.round?'':`
+function _drawStudioMask() {
+  const stage = document.getElementById('studio-stage'), mask = document.getElementById('studio-mask');
+  const sw = stage.clientWidth, sh = stage.clientHeight;
+  const fw = Math.round(sw * 0.88), fh = Math.round(fw / _stOptions.ratio);
+  const fx = Math.round((sw - fw) / 2), fy = Math.round((sh - fh) / 2);
+
+  mask.innerHTML = `
+    <div class="crop-shade" style="top:0; left:0; right:0; height:${fy}px"></div>
+    <div class="crop-shade" style="top:${fy}px; left:0; width:${fx}px; height:${fh}px"></div>
+    <div class="crop-shade" style="top:${fy}px; right:0; width:${fx}px; height:${fh}px"></div>
+    <div class="crop-shade" style="bottom:0; left:0; right:0; height:${sh - fy - fh}px"></div>
+    <div class="crop-frame-border${_stOptions.round ? ' round' : ''}" style="left:${fx}px; top:${fy}px; width:${fw}px; height:${fh}px">
+      ${_stOptions.round ? '' : `
       <div class="crop-corner tl"></div><div class="crop-corner tr"></div>
       <div class="crop-corner bl"></div><div class="crop-corner br"></div>
-      <div class="crop-grid-line" style="position:absolute;left:${Math.round(fw/3)}px;top:0;width:1px;height:100%"></div>
-      <div class="crop-grid-line" style="position:absolute;left:${Math.round(fw*2/3)}px;top:0;width:1px;height:100%"></div>
-      <div class="crop-grid-line" style="position:absolute;left:0;top:${Math.round(fh/3)}px;width:100%;height:1px"></div>
-      <div class="crop-grid-line" style="position:absolute;left:0;top:${Math.round(fh*2/3)}px;width:100%;height:1px"></div>
+      <div class="crop-grid-line" style="position:absolute; left:${Math.round(fw / 3)}px; top:0; width:1px; height:100%"></div>
+      <div class="crop-grid-line" style="position:absolute; left:${Math.round(fw * 2 / 3)}px; top:0; width:1px; height:100%"></div>
+      <div class="crop-grid-line" style="position:absolute; left:0; top:${Math.round(fh / 3)}px; width:100%; height:1px"></div>
+      <div class="crop-grid-line" style="position:absolute; left:0; top:${Math.round(fh * 2 / 3)}px; width:100%; height:1px"></div>
       `}
     </div>`;
 }
 
-function _initCropEvents() {
-  const s=document.getElementById('crop-stage'), img=document.getElementById('crop-img');
-  s.onmousedown = e=>{ _cropDragging=true; _cropDragSX=e.clientX; _cropDragSY=e.clientY; _cropDragOX=_cropX; _cropDragOY=_cropY; s.classList.add('dragging'); };
-  window.onmousemove = e=>{ if(!_cropDragging)return; _cropX=_cropDragOX+(e.clientX-_cropDragSX); _cropY=_cropDragOY+(e.clientY-_cropDragSY); _applyTransform(); };
-  window.onmouseup = ()=>{ _cropDragging=false; s.classList.remove('dragging'); };
+let _stOnMove, _stOnEnd;
 
-  s.onwheel = e=>{ e.preventDefault(); _cropScale=Math.max(_cropScale*.2,Math.min(_cropScale*10,_cropScale-(e.deltaY>0?.05*_cropScale:-.05*_cropScale))); const zS=document.getElementById('crop-zoom'); if(zS)zS.value=_cropScale; _applyTransform(); };
+function _initStudioEvents() {
+  const s = document.getElementById('studio-stage'), img = document.getElementById('studio-img');
 
-  s.ontouchstart = e=>{
-    if(e.touches.length===1){ _cropDragging=true; _cropDragSX=e.touches[0].clientX; _cropDragSY=e.touches[0].clientY; _cropDragOX=_cropX; _cropDragOY=_cropY; }
-    if(e.touches.length===2){ _cropPinchDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); }
+  const onStart = e => {
+    if (e.touches && e.touches.length === 2) {
+      _stPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      return;
+    }
+    _stDragging = true;
+    const t = e.touches ? e.touches[0] : e;
+    _stDragSX = t.clientX; _stDragSY = t.clientY;
+    _stDragOX = _stX; _stDragOY = _stY;
+    s.classList.add('dragging');
   };
-  s.ontouchmove = e=>{
-    if(e.touches.length===1&&_cropDragging){ _cropX=_cropDragOX+(e.touches[0].clientX-_cropDragSX); _cropY=_cropDragOY+(e.touches[0].clientY-_cropDragSY); _applyTransform(); }
-    if(e.touches.length===2){ e.preventDefault(); const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); _cropScale=Math.max(_cropScale*.2,Math.min(_cropScale*10,_cropScale*(d/_cropPinchDist))); _cropPinchDist=d; const zS=document.getElementById('crop-zoom'); if(zS)zS.value=_cropScale; _applyTransform(); }
-  };
-  s.ontouchend = ()=>{ _cropDragging=false; };
 
-  const zS=document.getElementById('crop-zoom'), rS=document.getElementById('crop-rotate');
-  if(zS) zS.oninput = e=>{ _cropScale=parseFloat(e.target.value); _applyTransform(); };
-  if(rS) rS.oninput = e=>{ _cropRotate=parseFloat(e.target.value); _applyTransform(); };
+  _stOnMove = e => {
+    if (e.touches && e.touches.length === 2) {
+      e.preventDefault();
+      const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      if (_stPinchDist > 0) {
+        _stScale = Math.max(0.1, Math.min(10, _stScale * (d / _stPinchDist)));
+        const zS = document.getElementById('studio-zoom');
+        if (zS) zS.value = _stScale;
+        _applyStudioTransform();
+      }
+      _stPinchDist = d;
+      return;
+    }
+    if (!_stDragging) return;
+    const t = e.touches ? e.touches[0] : e;
+    _stX = _stDragOX + (t.clientX - _stDragSX);
+    _stY = _stDragOY + (t.clientY - _stDragSY);
+    _applyStudioTransform();
+  };
+
+  _stOnEnd = () => {
+    _stDragging = false;
+    _stPinchDist = 0;
+    s.classList.remove('dragging');
+  };
+
+  s.onmousedown = onStart;
+  s.ontouchstart = onStart;
+
+  window.addEventListener('mousemove', _stOnMove);
+  window.addEventListener('touchmove', _stOnMove, { passive: false });
+  window.addEventListener('mouseup', _stOnEnd);
+  window.addEventListener('touchend', _stOnEnd);
+
+  const zS = document.getElementById('studio-zoom'), rS = document.getElementById('studio-rotate');
+  if (zS) zS.oninput = e => { _stScale = parseFloat(e.target.value); _applyStudioTransform(); };
+  if (rS) rS.oninput = e => { _stRotate = parseFloat(e.target.value); _applyStudioTransform(); };
 }
 
-function applyCrop() {
-  const img=document.getElementById('crop-img'), stage=document.getElementById('crop-stage');
-  const sw=stage.clientWidth, sh=stage.clientHeight;
-  const fw=Math.round(sw*.88), fh=Math.round(fw/_cropOptions.ratio);
-  const fx=(sw-fw)/2, fy=(sh-fh)/2;
-  const canvas=document.createElement('canvas');
-  const OUT=800; canvas.width=OUT; canvas.height=Math.round(OUT/_cropOptions.ratio);
-  const ctx=canvas.getContext('2d');
+function applyStudio() {
+  const img = document.getElementById('studio-img'), stage = document.getElementById('studio-stage');
+  const sw = stage.clientWidth, sh = stage.clientHeight;
+  const fw = Math.round(sw * 0.88), fh = Math.round(fw / _stOptions.ratio);
+  const fx = (sw - fw) / 2, fy = (sh - fh) / 2;
 
-  ctx.translate(canvas.width/2, canvas.height/2);
-  ctx.rotate(_cropRotate * Math.PI / 180);
-  ctx.scale(_cropScale, _cropScale);
+  const canvas = document.createElement('canvas');
+  const OUT = 1080; // Висока якість для Supabase
+  canvas.width = OUT; canvas.height = Math.round(OUT / _stOptions.ratio);
+  const ctx = canvas.getContext('2d');
 
-  // Calculate relative position
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.rotate(_stRotate * Math.PI / 180);
+  ctx.scale(_stScale, _stScale);
+
   const drawW = img.naturalWidth;
   const drawH = img.naturalHeight;
-  const dx = (_cropX - (sw/2 - (fx + fw/2))) / _cropScale;
-  const dy = (_cropY - (sh/2 - (fy + fh/2))) / _cropScale;
 
-  ctx.drawImage(img, dx - drawW/2, dy - drawH/2, drawW, drawH);
+  // Розрахунок позиції відносно центру рамки кропу
+  const scaleInCanvas = OUT / fw;
+  const dx = (_stX * scaleInCanvas) / _stScale;
+  const dy = (_stY * scaleInCanvas) / _stScale;
 
-  const result=canvas.toDataURL('image/jpeg',.9);
-  document.getElementById('crop-modal').classList.add('hidden');
-  if(_cropCallback) _cropCallback(result);
-  _cropCallback=null;
+  ctx.drawImage(img, dx - drawW / 2, dy - drawH / 2, drawW, drawH);
+
+  const result = canvas.toDataURL('image/jpeg', 0.9);
+  closeStudio();
+  if (_stCallback) _stCallback(result);
+  _stCallback = null;
 }
 
-function cancelCrop(fromPopState=false) {
-  document.getElementById('crop-modal').classList.add('hidden');
-  _cropCallback=null;
-  if(!fromPopState && _histDepth > 0) { _histDepth--; history.back(); }
+function closeStudio(fromPopState = false) {
+  document.getElementById('studio').classList.add('hidden');
+  window.removeEventListener('mousemove', _stOnMove);
+  window.removeEventListener('touchmove', _stOnMove);
+  window.removeEventListener('mouseup', _stOnEnd);
+  window.removeEventListener('touchend', _stOnEnd);
+  _stCallback = null;
+  unlockScroll();
+  if (!fromPopState && _histDepth > 0) { _histDepth--; history.back(); }
 }

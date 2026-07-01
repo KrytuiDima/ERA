@@ -12,15 +12,17 @@ function getFriendIds() {
 
 // ── Follow / Unfollow ─────────────────────────────────────
 // Підписка на користувача (враховуючи приватність)
-// Всі мутації асинхронні для майбутньої інтеграції з Supabase
+// Всі мутації асинхронні для майбутньої інтеграції з Supabase SDK
 async function followUser(uid) {
   const user = getUser(uid);
   const isPrivate = user?.privacy === 'private';
 
   if (isPrivate) {
-    // Для приватних акаунтів створюємо запит
+    // Для приватних акаунтів створюємо запит (Action 1 в черзі)
     FOLLOWS.set(uid, 'requested');
     await saveFollowsToStorage();
+
+    // Надсилаємо сповіщення власнику акаунта
     addNotif({ type: 'request', fromUid: APP.user.id, toUid: uid });
     showToast(t('social.requestSent', { user: user.username }));
   } else {
@@ -28,7 +30,7 @@ async function followUser(uid) {
     FOLLOWS.set(uid, 'following');
     await saveFollowsToStorage();
     
-    // Якщо підписка взаємна — вони тепер друзі
+    // Якщо підписка взаємна — вони автоматично стають друзями
     if (FOLLOWERS.get(uid) === true) {
       showToast(t('social.nowFriends', { user: user.username }));
     } else {
@@ -85,23 +87,29 @@ async function toggleFollowUser(uid, btn) {
 }
 
 // ── Approve / Decline ─────────────────────────────────────
-// Схвалення запиту: Дія 1 — Дозволити перегляд
-// Це дає користувачу статус підписника та доступ до контенту
+// Дворівневе схвалення запиту (Module 1)
+// Дія 1: "Дозволити перегляд" — користувач стає підписником
 async function approveRequest(fromUid) {
+  // Симуляція оновлення прав доступу в БД
   FOLLOWERS.set(fromUid, true);
   REQUESTS.delete(fromUid);
 
-  // Оновлюємо статус у списку сповіщень
-  const n = NOTIFS.find(x => x.userId === fromUid && x.type === 'request');
-  if (n) n._approved = true;
+  // Оновлюємо статус у всіх сповіщеннях від цього користувача
+  NOTIFS.forEach(n => {
+    if (n.userId === fromUid && n.type === 'request') {
+      n._approved = true;
+      // Після Action 1 тип сповіщення фактично змінюється на follow,
+      // що відкриває кнопку "Action 2: Підписатися у відповідь"
+    }
+  });
 
-  // Надсилаємо сповіщення про схвалення
+  // Надсилаємо зворотне сповіщення про схвалення
   addNotif({ type: 'approved', fromUid: APP.user.id, toUid: fromUid });
   showToast(t('profile.requestApproved'));
 
-  // Оновлюємо інтерфейс у всіх активних зонах
+  // Повне оновлення інтерфейсу для відображення нових кнопок дій
   if (document.getElementById('follow-requests-screen')) renderFollowRequests();
-  if (APP.view === 'profile') renderProfile(APP.profileUid);
+  if (APP.view === 'profile' && APP.profileUid === fromUid) renderProfile(fromUid);
   if (APP.view === 'notif') renderNotif();
   renderNotifBadge();
 }
@@ -180,28 +188,31 @@ async function unpinPost(pid) {
   if (APP.view==='profile') renderProfile(APP.user.id);
 }
 
+// Діалог заміни закріпленого поста (якщо вже є 3)
 function showPinReplaceDialog(newPid) {
-  const pinned=getPinnedPosts(APP.user.id);
-  const lb=document.createElement('div'); lb.id='pin-replace-dialog';
-  lb.style.cssText='position:fixed;inset:0;z-index:700;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .18s ease';
-  lb.innerHTML=`
-    <div style="background:var(--s1);border:1px solid var(--b2);border-radius:20px;padding:24px;width:100%;max-width:380px">
-      <div style="font-size:15px;font-weight:700;margin-bottom:6px">${t('post.pinLimit')}</div>
-      <div style="font-size:12px;color:var(--t2);margin-bottom:18px">${t('post.pinLimitHint')}</div>
-      <div style="display:flex;gap:10px;margin-bottom:18px">
-        ${pinned.map(pid=>{
-          const p=POSTS.find(x=>x.id===pid),u=getUser(p?.userId||'');
-          const bg=postGrad(u),imgs=getPostImages(p);
-          return`<div style="flex:1;aspect-ratio:1;border-radius:10px;overflow:hidden;cursor:pointer;border:2px solid transparent;transition:border .18s" onclick="replacePinWith('${pid}','${newPid}');document.getElementById('pin-replace-dialog').remove()" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='transparent'">
-            ${imgs&&imgs[0]?`<img src="${imgs[0]}" style="width:100%;height:100%;object-fit:cover">`:
-            `<div style="width:100%;height:100%;background:${bg}"></div>`}
+  const pinned = getPinnedPosts(APP.user.id);
+  const lb = document.createElement('div'); lb.id = 'pin-replace-dialog';
+  lb.style.cssText = 'position:fixed; inset:0; z-index:700; background:rgba(0,0,0,.82); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; padding:20px; animation:fadeIn .18s ease';
+
+  lb.innerHTML = `
+    <div style="background:var(--s1); border:1px solid var(--b2); border-radius:24px; padding:28px; width:100%; max-width:400px; box-shadow:0 10px 40px rgba(0,0,0,0.5)">
+      <div style="font-size:17px; font-weight:700; margin-bottom:8px; text-align:center">${t('post.pinLimit')}</div>
+      <div style="font-size:13px; color:var(--t2); margin-bottom:24px; text-align:center; line-height:1.5">${t('post.pinLimitHint')}</div>
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:24px">
+        ${pinned.map(pid => {
+          const p = POSTS.find(x => x.id === pid), u = getUser(p?.userId || '');
+          const bg = postGrad(u), imgs = getPostImages(p);
+          return `<div style="aspect-ratio:1; border-radius:12px; overflow:hidden; cursor:pointer; border:2px solid transparent; transition:all .18s; position:relative" onclick="replacePinWith('${pid}','${newPid}'); document.getElementById('pin-replace-dialog').remove()" onmouseover="this.style.borderColor='var(--blue)'; this.style.transform='scale(1.05)'" onmouseout="this.style.borderColor='transparent'; this.style.transform='scale(1)'">
+            ${imgs && imgs[0] ? `<img src="${imgs[0]}" style="width:100%; height:100%; object-fit:cover">` : `<div style="width:100%; height:100%; background:${bg}"></div>`}
           </div>`;
         }).join('')}
       </div>
-      <button onclick="document.getElementById('pin-replace-dialog').remove()" style="width:100%;padding:10px;border-radius:9px;background:var(--s2);border:1px solid var(--b1);color:var(--t2);font-size:13px;font-weight:600;cursor:pointer">Скасувати</button>
+      <button onclick="document.getElementById('pin-replace-dialog').remove()" style="width:100%; padding:12px; border-radius:12px; background:var(--s2); border:1px solid var(--b1); color:var(--t1); font-size:14px; font-weight:600; cursor:pointer; transition:background .14s" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='var(--s2)'">${t('crop.cancel')}</button>
     </div>`;
-  lb.addEventListener('click',e=>{if(e.target===lb)lb.remove();});
+
+  lb.addEventListener('click', e => { if (e.target === lb) lb.remove(); });
   document.body.appendChild(lb);
+  eraPush('pin-replace');
 }
 
 // Заміна одного закріпленого поста іншим

@@ -36,6 +36,7 @@ function vibeColors(baseHex, seed) {
 
 // Створення SVG штрих-коду (Vibe Code)
 // Кожен користувач має унікальний візуальний код на основі базового кольору
+// Для друзів додається тонкий неоновий контур кольору вайбу поточного юзера (Module 1)
 function makeVibeCode(baseHex, uid, w = 100, h = 100, opts = {}) {
   const seed = hashStr(String(uid));
   const cols = vibeColors(baseHex, seed);
@@ -57,14 +58,14 @@ function makeVibeCode(baseHex, uid, w = 100, h = 100, opts = {}) {
     x += bw;
   }
 
-  // Логіка для друзів: неоновий контур кольору вайбу поточного юзера
+  // Акцент для Друзів: неоновий контур кольору вайбу ПОТОЧНОГО авторизованого юзера
   const isFrnd = opts.friend && isFriend(uid);
-  const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff' });
+  const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff', id: 'me' });
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
 
-  const stroke = isFrnd ? myCols[0] : 'rgba(255,255,255,.1)';
+  const stroke = isFrnd ? myCols[0] : 'rgba(255,255,255,.08)';
   const sw = isFrnd ? '4' : '0.5';
-  const glow = isFrnd ? `filter: drop-shadow(0 0 5px ${myCols[0]}cc);` : '';
+  const glow = isFrnd ? `filter: drop-shadow(0 0 6px ${myCols[0]}cc);` : '';
 
   return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" style="display:block; ${glow}">
     <defs>
@@ -118,21 +119,21 @@ function saveMoodHist(id) {
 }
 
 // Генерація HTML для аватара
-// Якщо юзер є другом, додається неоновий контур кольору вайбу поточного авторизованого користувача
+// Якщо юзер є другом, додається неоновий контур кольору вайбу ПОТОЧНОГО юзера (Module 1)
 function avatarHTML(user, size = 38, opts = {}) {
   const vibe = currentVibeColor(user);
   const cols = vibeColors(vibe, hashStr(user.id));
   const isFrnd = opts.friend && isFriend(user.id);
 
-  // Отримуємо колір вайбу поточного юзера для акценту на друзях
-  const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff' });
+  // Візуальний зв'язок: колір контуру друга = колір вайбу того, хто дивиться
+  const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff', id: 'me' });
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
 
   const borderColor = isFrnd ? myCols[0] : cols[0];
   const border = isFrnd
-    ? `3px solid ${borderColor}` // Неонове кільце для друзів
+    ? `2.5px solid ${borderColor}` // Тонкий неоновий контур
     : `2.5px solid ${cols[0]}55`;
-  const glow = isFrnd ? `box-shadow: 0 0 12px ${borderColor}99;` : '';
+  const glow = isFrnd ? `box-shadow: 0 0 10px ${borderColor}88;` : '';
   const cls = isFrnd ? ' ava-friend' : '';
 
   if (user.avatar) {

@@ -16,15 +16,16 @@ function setView(v) {
   else if (v==='settings') renderSettings();
 }
 
-// ── Explore (Пошук користувачів) ───────────────────────────
+// ── Explore (Пошук користувачів — Module 5) ────────────────
 // Реалізовано швидкий пошук з відображенням Vibe Code та статусу відносин
 async function renderExplore(q) {
   const sq = q.toLowerCase();
   const stored = JSON.parse(localStorage.getItem('era_users') || '[]');
+  // Об'єднуємо семпли з локальним сховищем, уникаючи дублікатів
   const all = [...SU, ...stored.filter(u => !SU.find(s => s.id === u.id))];
   const filtered = sq ? all.filter(u => u.username.toLowerCase().includes(sq) || (u.displayName || '').toLowerCase().includes(sq)) : all;
 
-  const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff' });
+  const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff', id: 'me' });
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
 
   document.getElementById('feed-container').innerHTML = `

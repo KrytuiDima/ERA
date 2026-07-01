@@ -20,16 +20,16 @@ ${grouped.length === 0
   renderNotifBadge();
 }
 
+// Анти-спам групування сповіщень (Module 4)
 function _groupNotifs(notifs) {
-  // Group: same user liked multiple posts → show once
   const out = [], seen = new Set();
   for (const n of notifs) {
     if (seen.has(n.id)) continue;
-    if (n.type==='like') {
-      const sameUser = notifs.filter(x=>x.userId===n.userId&&x.type==='like'&&!seen.has(x.id));
-      if (sameUser.length>1) {
-        const merged = {...sameUser[0], _count:sameUser.length, _ids:sameUser.map(x=>x.id)};
-        sameUser.forEach(x=>seen.add(x.id));
+    if (n.type === 'like') {
+      const sameUser = notifs.filter(x => x.userId === n.userId && x.type === 'like' && !seen.has(x.id));
+      if (sameUser.length > 2) {
+        const merged = { ...sameUser[0], _count: sameUser.length, unread: sameUser.some(x => x.unread) };
+        sameUser.forEach(x => seen.add(x.id));
         out.push(merged); continue;
       }
     }
@@ -81,7 +81,7 @@ function renderNotifRow(n, idx) {
     default: text = `@${u.username}`;
   }
 
-  // Кнопки дій для запитів (Action 1 та Action 2)
+  // Кнопки дій для запитів (Action 1 та Action 2) — Module 1/4
   const actionBtns = (n.type === 'request' && !n._approved) ? `
     <div style="display:flex; gap:6px; margin-top:8px">
       <button onclick="event.stopPropagation(); approveRequest('${n.userId}')" style="padding:6px 14px; border-radius:8px; background:var(--grad); border:none; color:#000; font-size:12px; font-weight:600; cursor:pointer">${t('notif.approve')}</button>
@@ -102,8 +102,8 @@ function renderNotifRow(n, idx) {
     ${avatarHTML(u, 40, { friend: true })}
   </div>
 
-  <!-- Зона B: Текст -> Пост -->
-  <div style="flex:1; min-width:0; cursor:pointer" onclick="${post ? `expandPost('${post.id}')` : ''}">
+  <!-- Зона B: Текст -> Пост (Module 4) -->
+  <div style="flex:1; min-width:0; cursor:pointer" onclick="${post ? `expandPost('${post.id}', null, '${n.type === 'comment' ? (n.commentId || 'last') : ''}')` : ''}">
     <div style="font-size:13px; color:var(--t1); line-height:1.4">${text}</div>
     <div style="font-size:10px; color:var(--t3); margin-top:3px">${fmtTime(n.ts)}</div>
     ${actionBtns}
@@ -111,7 +111,7 @@ function renderNotifRow(n, idx) {
 
   ${followBackBtn}
 
-  <!-- Зона C: Прев'ю поста -> Лайтбокс -->
+  <!-- Зона C: Прев'ю поста -> Лайтбокс (Module 4) -->
   ${post ? `<div style="width:40px; height:40px; border-radius:8px; overflow:hidden; flex-shrink:0; background:${postBg}; cursor:pointer" onclick="expandPost('${post.id}')">
     ${postImg ? `<img src="${postImg}" style="width:100%; height:100%; object-fit:cover">` : ''}
   </div>` : ''}

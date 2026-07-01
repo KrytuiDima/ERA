@@ -1,18 +1,37 @@
 // js/lightbox.js — Lightbox with physics (Перегляд медіа)
 
-function expandPost(pid, ctx) {
-  const p = POSTS.find(x=>x.id===pid);
-  if (p && !SESSION_VIEWS.has('lb-'+pid)) { SESSION_VIEWS.add('lb-'+pid); p.views=(p.views||0)+1; }
-  if (ctx==='profile' && APP.profileUid) {
-    LB_LIST = POSTS.filter(p=>p.userId===APP.profileUid).sort((a,b)=>b.ts-a.ts);
+// Відкриття поста у повний екран (Module 3)
+// focusCmtId: опціональний ID коментаря для автоматичного підскролу та виділення
+function expandPost(pid, ctx, focusCmtId = null) {
+  const p = POSTS.find(x => x.id === pid);
+  if (p && !SESSION_VIEWS.has('lb-' + pid)) {
+    SESSION_VIEWS.add('lb-' + pid);
+    p.views = (p.views || 0) + 1;
+  }
+
+  if (ctx === 'profile' && APP.profileUid) {
+    LB_LIST = POSTS.filter(p => p.userId === APP.profileUid).sort((a, b) => b.ts - a.ts);
   } else {
     const feed = getFeedPosts();
-    LB_LIST = feed.length ? feed : [...POSTS].sort((a,b)=>b.ts-a.ts);
+    LB_LIST = feed.length ? feed : [...POSTS].sort((a, b) => b.ts - a.ts);
   }
-  LB_IDX = LB_LIST.findIndex(p=>p.id===pid);
-  if (LB_IDX<0) LB_IDX=0;
-  lockScroll(); eraPush('lightbox');
+
+  LB_IDX = LB_LIST.findIndex(p => p.id === pid);
+  if (LB_IDX < 0) LB_IDX = 0;
+
+  lockScroll();
+  eraPush('lightbox');
   buildLightbox();
+
+  // Якщо передано ID коментаря — відкриваємо секцію коментарів та скролимо до нього (Module 4)
+  if (focusCmtId) {
+    setTimeout(() => {
+      closeLightbox();
+      const p = POSTS.find(x => x.id === pid);
+      const targetCmtId = focusCmtId === 'last' ? p?.comments[p.comments.length - 1]?.id : focusCmtId;
+      openCmts(pid, targetCmtId);
+    }, 500);
+  }
 }
 
 function _closeLightboxInternal(fromPopState=false) {
@@ -152,9 +171,9 @@ function buildLightbox(dir=0) {
 
     wrapEl.style.transition = 'transform .3s cubic-bezier(.22,1,.36,1), opacity .3s';
     
-    // Закриваємо при достатньому зміщенні (вгору або вниз)
-    if (isVertical && Math.abs(dy) > 130) {
-      wrapEl.style.transform = `translateY(${dy > 0 ? '100vh' : '-100vh'}) scale(0.5)`;
+    // Swipe-to-close (Module 3): закриваємо при достатньому зміщенні (вгору або вниз)
+    if (isVertical && Math.abs(dy) > 120) {
+      wrapEl.style.transform = `translateY(${dy > 0 ? '100vh' : '-100vh'}) scale(0.6)`;
       lb.style.opacity = '0';
       setTimeout(() => closeLightbox(), 250);
     } else {
@@ -185,19 +204,20 @@ function buildLightbox(dir=0) {
 }
 
 
-// Подвійний тап для лайка з анімацією серця
+// Подвійний тап для лайка з анімацією серця (Module 3)
 function lbDoubleTap(pid, imgArea) {
-  const p=POSTS.find(x=>x.id===pid); if(!p) return;
-  if(!p.liked){
-    p.liked=true;
+  const p = POSTS.find(x => x.id === pid); if (!p) return;
+  if (!p.liked) {
+    p.liked = true;
     p.likes++;
     refreshLikeBtn(pid);
   }
-  // Велика іконка серця по центру
-  const heart=document.createElement('div');
-  heart.className='like-heart-anim';
+
+  // Велика іконка серця по центру (анімація heartPop з era.css)
+  const heart = document.createElement('div');
+  heart.className = 'like-heart-anim';
   heart.style.fontSize = '100px';
-  heart.textContent='❤️';
+  heart.innerHTML = `<svg viewBox="0 0 24 24" fill="#fff" stroke="#fff" stroke-width="1" style="width:100px; height:100px; filter: drop-shadow(0 0 15px rgba(255,0,0,0.4))"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`;
   imgArea.appendChild(heart);
-  setTimeout(()=>heart.remove(),700);
+  setTimeout(() => heart.remove(), 700);
 }

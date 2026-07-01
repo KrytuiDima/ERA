@@ -303,49 +303,34 @@
   <div class="studio-hdr">
     <button class="studio-btn-cancel" onclick="closeStudio()" data-i18n="crop.cancel">Cancel</button>
     <div class="studio-title">Media Studio</div>
-    <button class="studio-btn-done" onclick="finishStudio()" data-i18n="crop.done">Done</button>
+    <button class="studio-btn-done" onclick="applyStudio()" data-i18n="crop.done">Done</button>
   </div>
+
   <div class="studio-stage" id="studio-stage">
     <div class="studio-canvas-wrap" id="studio-wrap">
-      <canvas id="studio-canvas"></canvas>
-      <canvas id="studio-brush-canvas" class="studio-overlay"></canvas>
-      <div id="studio-text-layer" class="studio-overlay"></div>
+      <img id="studio-img" src="" alt="" draggable="false">
+      <div id="studio-mask" class="studio-mask"></div>
     </div>
-    <button class="studio-undo hidden" id="studio-undo" onclick="studioUndo()" data-i18n="crop.undo">UNDO</button>
+    <div class="studio-hint" data-i18n="crop.hint">Перетягни фото · два пальці = масштаб</div>
   </div>
   
-  <!-- Studio Panels -->
-  <div id="studio-panel-crop" class="studio-panel hidden">
-    <div class="studio-panel-row">
-      <span>ZOOM</span>
+  <!-- Studio Controls -->
+  <div class="studio-controls">
+    <div class="studio-control-row">
+      <span data-i18n="studio.zoom">ZOOM</span>
       <input type="range" class="studio-slider" id="studio-zoom" min="0.1" max="5" step="0.01" value="1">
     </div>
-    <div class="studio-panel-row">
-      <span>ROTATE</span>
+    <div class="studio-control-row">
+      <span data-i18n="studio.rotate">ROTATE</span>
       <input type="range" class="studio-slider" id="studio-rotate" min="-180" max="180" step="1" value="0">
     </div>
   </div>
-  
-  <div id="studio-panel-brush" class="studio-panel hidden">
-    <div class="studio-colors" id="studio-brush-colors"></div>
-  </div>
 
   <div class="studio-footer">
-    <button class="studio-tool" id="st-crop" onclick="setStudioTool('crop')">
+    <div class="studio-tool active">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6.13 1L6 16a2 2 0 0 0 2 2h15"/><path d="M1 6.13L16 6a2 2 0 0 1 2 2v15"/></svg>
-      <span>Crop</span>
-      <div class="studio-tool-dot"></div>
-    </button>
-    <button class="studio-tool" id="st-brush" onclick="setStudioTool('brush')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 13V.6a2.6 2.6 0 1 0-5.2 0V13a4 4 0 1 1-8 0V8.5"/><path d="M2 13h20"/></svg>
-      <span>Brush</span>
-      <div class="studio-tool-dot"></div>
-    </button>
-    <button class="studio-tool" id="st-text" onclick="setStudioTool('text')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
-      <span>Text</span>
-      <div class="studio-tool-dot"></div>
-    </button>
+      <span data-i18n="studio.crop">Crop</span>
+    </div>
   </div>
 </div>
 
