@@ -1,15 +1,6 @@
 // js/create.js — Post creation
 
-function openCreatePost() {
-  POST_IMGS = [];
-  document.getElementById('post-file').value = '';
-  document.getElementById('upload-ph').classList.remove('hidden');
-  document.getElementById('upload-grid').classList.add('hidden');
-  document.getElementById('upload-zone').classList.remove('has-imgs');
-  document.getElementById('desc-ta').value = '';
-  document.getElementById('desc-cnt').textContent = '0/300';
-  openModal('modal-create');
-}
+// js/create.js — Post creation (Module 2/3)
 
 // Обробка вибраних фото для поста
 // Використовує кропер з пропорціями 4:5 для забезпечення естетики стрічки
@@ -24,19 +15,22 @@ async function onPostFile(e) {
     r.readAsDataURL(f);
   });
 
-  // Для першого фото завжди відкриваємо кропер 4:5
-  const firstSrc = await readFile(files[0]);
-  
-  showCropTool(firstSrc, async (cropped) => {
-    if (files.length > 1) {
-      // Якщо вибрано кілька фото — інші додаються автоматично (можна розширити до кропу всіх)
-      const rest = await Promise.all(files.slice(1).map(readFile));
-      POST_IMGS = [...POST_IMGS, cropped, ...rest].slice(0, 10);
-    } else {
-      POST_IMGS = [...POST_IMGS, cropped].slice(0, 10);
+  // Послідовна обробка вибраних фото для поста (Module 2)
+  // Використовує професійний кропер 4:5 для забезпечення естетики стрічки
+  const processPhotos = async (index) => {
+    if (index >= files.length || POST_IMGS.length >= 10) {
+      renderUploadGrid();
+      return;
     }
-    renderUploadGrid();
-  }, { ratio: 4/5 });
+
+    const src = await readFile(files[index]);
+    openStudio(src, async (cropped) => {
+      POST_IMGS.push(cropped);
+      processPhotos(index + 1); // Кропаємо наступне фото в черзі
+    }, { ratio: 4/5 });
+  };
+
+  processPhotos(0);
 }
 
 function renderUploadGrid() {

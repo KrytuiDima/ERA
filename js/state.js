@@ -75,8 +75,8 @@ function getPostImages(post) {
   return null;
 }
 
-// Форматування відносного часу (щойно, 5 хв тому, вчора тощо)
-// Працює для всіх мов через систему перекладів t()
+// Формування відносного часу (щойно, 5 хв тому, вчора тощо) — Module 5
+// Працює для всіх мов (UA/EN/RU) через систему перекладів t()
 function fmtTime(ts) {
   const d = Date.now() - ts;
   if (d < 60000) return t('time.justNow');
@@ -86,10 +86,8 @@ function fmtTime(ts) {
     return t('time.min', { n: m });
   }
   
-  if (d < 86400000) {
-    const h = Math.floor(d / 3600000);
-    // Якщо пройшло менше 24 годин, але це вже інша доба — можна було б писати "вчора", 
-    // але для простоти використовуємо години до 24
+  const h = Math.floor(d / 3600000);
+  if (h < 24) {
     return t('time.hour', { n: h });
   }
   

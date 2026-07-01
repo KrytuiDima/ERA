@@ -81,7 +81,7 @@ function renderPostCard(post, delay = 0) {
   <div class="post-head">
     <div class="post-ava" onclick="${own?`setView('profile')`:`openUserCard('${u.id}')`}">${avatarHTML(u,38,{friend:true})}</div>
     <div class="post-meta">
-      <div class="post-uname" onclick="${own?`setView('profile')`:`openUserCard('${u.id}')`}">@${esc(u.username)}${friendMark}</div>
+      <div class="post-uname" style="${frnd ? `color:${myCols[0]}; text-shadow:0 0 10px ${myCols[0]}44` : ''}" onclick="${own?`setView('profile')`:`openUserCard('${u.id}')`}">@${esc(u.username)}${friendMark}</div>
       <div class="post-time">${fmtTime(post.ts)}</div>
     </div>
     <div class="vibe-dot" style="background:${frnd ? myCols[0] : cols[0]}${frnd?';box-shadow:0 0 8px '+myCols[0]:''}; ${frnd ? 'outline: 1px solid ' + myCols[0] : ''}"></div>
@@ -177,13 +177,22 @@ function feedImgClick(e, pid) {
   if (feedTapTimer) { clearTimeout(feedTapTimer); feedTapTimer=null; feedDblTap(e,pid); return; }
   feedTapTimer = setTimeout(()=>{ feedTapTimer=null; expandPost(pid); }, 200);
 }
+// Подвійний тап для лайка у стрічці (Module 3)
 function feedDblTap(e, pid) {
-  clearTimeout(feedTapTimer); feedTapTimer=null;
-  const p=POSTS.find(x=>x.id===pid); if(!p) return;
-  if(!p.liked){p.liked=true;p.likes++;refreshLikeBtn(pid);}
-  const wrap=document.getElementById('img-'+pid); if(!wrap) return;
-  const heart=document.createElement('div'); heart.className='like-heart-anim'; heart.textContent='❤️';
-  wrap.appendChild(heart); setTimeout(()=>heart.remove(),700);
+  clearTimeout(feedTapTimer); feedTapTimer = null;
+  const p = POSTS.find(x => x.id === pid); if (!p) return;
+  if (!p.liked) {
+    p.liked = true;
+    p.likes++;
+    refreshLikeBtn(pid);
+  }
+
+  const wrap = document.getElementById('img-' + pid); if (!wrap) return;
+  const heart = document.createElement('div');
+  heart.className = 'like-heart-anim';
+  heart.innerHTML = `<svg viewBox="0 0 24 24" fill="#fff" stroke="#fff" stroke-width="1" style="width:80px; height:80px; filter: drop-shadow(0 0 12px rgba(255,0,0,0.3))"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`;
+  wrap.appendChild(heart);
+  setTimeout(() => heart.remove(), 700);
 }
 
 // ── Post actions ──────────────────────────────────────────
@@ -216,40 +225,57 @@ function editDesc(pid) {
 }
 
 // ── Comments ──────────────────────────────────────────────
-function openCmts(pid) {
-  OPEN_POST=pid; CMT_PHOTO=null;
+// Відкриття шторки коментарів (Module 3)
+// focusId: опціональний ID коментаря для виділення
+function openCmts(pid, focusId = null) {
+  OPEN_POST = pid; CMT_PHOTO = null;
   document.getElementById('cmt-ph-prev').classList.add('hidden');
-  document.getElementById('cmt-input').value='';
-  document.getElementById('cmt-file').value='';
-  document.getElementById('cmt-bar-ava').innerHTML=avatarHTML(APP.user,30);
-  const p=POSTS.find(x=>x.id===pid), pu=getUser(p.userId);
-  document.getElementById('cmt-body').innerHTML=`
-  <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--b1)">
-    <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px">
-      <div style="width:28px;height:28px;border-radius:50%;overflow:hidden;cursor:pointer" onclick="openUserCard('${pu.id}')">${avatarHTML(pu,28,{friend:true})}</div>
-      <span style="font-size:13px;font-weight:600;cursor:pointer" onclick="openUserCard('${pu.id}')">@${esc(pu.username)}</span>
-      <span style="font-size:11px;color:var(--t2)">${fmtTime(p.ts)}</span>
+  document.getElementById('cmt-input').value = '';
+  document.getElementById('cmt-file').value = '';
+  document.getElementById('cmt-bar-ava').innerHTML = avatarHTML(APP.user, 30);
+
+  const p = POSTS.find(x => x.id === pid), pu = getUser(p.userId);
+  document.getElementById('cmt-body').innerHTML = `
+  <div style="margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid var(--b1)">
+    <div style="display:flex; align-items:center; gap:9px; margin-bottom:6px">
+      <div style="width:28px; height:28px; border-radius:50%; overflow:hidden; cursor:pointer" onclick="openUserCard('${pu.id}')">${avatarHTML(pu, 28, { friend: true })}</div>
+      <span style="font-size:13px; font-weight:600; cursor:pointer" onclick="openUserCard('${pu.id}')">@${esc(pu.username)}</span>
+      <span style="font-size:11px; color:var(--t2)">${fmtTime(p.ts)}</span>
     </div>
-    ${p.desc?`<div style="font-size:13px;color:var(--t2);line-height:1.55">${tags(esc(p.desc))}</div>`:''}
+    ${p.desc ? `<div style="font-size:13px; color:var(--t2); line-height:1.55">${tags(esc(p.desc))}</div>` : ''}
   </div>
-  <div class="cmt-list" id="cmt-list">${p.comments.map(c=>renderCmt(c)).join('')}</div>
-  ${p.comments.length===0?`<div style="text-align:center;font-size:12px;color:var(--t3);padding:16px 0">${t('post.firstComment')}</div>`:''}`;
+  <div class="cmt-list" id="cmt-list">${p.comments.map(c => renderCmt(c)).join('')}</div>
+  ${p.comments.length === 0 ? `<div style="text-align:center; font-size:12px; color:var(--t3); padding:16px 0">${t('post.firstComment')}</div>` : ''}`;
+
   openModal('modal-cmt');
+
+  // Якщо передано ID коментаря — скролимо до нього та підсвічуємо
+  if (focusId) {
+    setTimeout(() => {
+      const el = document.getElementById('cmt-' + focusId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.style.background = 'rgba(255,255,255,0.05)';
+        setTimeout(() => el.style.background = '', 2000);
+      }
+    }, 400);
+  }
 }
 
 // Рендеринг одного коментаря
 // Реалізовано відображення фото у вигляді квадратного прев'ю з відкриттям у загальному лайтбоксі
+// Рендеринг одного коментаря (Module 3/5)
 function renderCmt(c) {
   const u = getUser(c.userId);
   const frnd = isFriend(c.userId);
-  const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff' });
+  const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff', id: 'me' });
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
 
-  return `<div class="cmt-item">
+  return `<div class="cmt-item" id="cmt-${c.id}">
   <div class="cmt-ava" style="cursor:pointer" onclick="openUserCard('${u.id}')">${avatarHTML(u, 30, { friend: true })}</div>
   <div class="cmt-bwrap">
     <div>
-      <span class="cmt-uname" style="cursor:pointer" onclick="openUserCard('${u.id}')">@${esc(u.username)}</span>
+      <span class="cmt-uname" style="cursor:pointer; ${frnd ? `color:${myCols[0]}` : ''}" onclick="openUserCard('${u.id}')">@${esc(u.username)}</span>
       ${frnd ? `<span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:${myCols[0]}; margin-left:5px; vertical-align:middle; box-shadow:0 0 5px ${myCols[0]}"></span>` : ''}
       <span class="cmt-utime">${fmtTime(c.ts)}</span>
     </div>
@@ -257,7 +283,7 @@ function renderCmt(c) {
     
     <!-- Фото в коментарі: маленьке квадратне прев'ю -->
     ${c.photo ? `<div class="cmt-ph-wrap" onclick="openPhotoLightbox('${c.photo}')">
-      <img class="cmt-photo-img" src="${c.photo}" alt="">
+      <img class="cmt-photo-img" src="${c.photo}" alt="" style="width:100%; height:100%; object-fit:cover">
     </div>` : ''}
   </div></div>`;
 }
