@@ -349,6 +349,30 @@
   </div>
 </div>
 
+<!-- ── CROP MODAL (Медіа-редактор) ─────────────────────────── -->
+<div id="crop-modal" class="hidden">
+  <div class="crop-hdr">
+    <button class="crop-cancel" onclick="cancelCrop()" data-i18n="crop.cancel">Cancel</button>
+    <div class="crop-title" data-i18n="crop.title">Crop Photo</div>
+    <button class="crop-apply" onclick="applyCrop()" data-i18n="crop.apply">Apply</button>
+  </div>
+  <div class="crop-stage" id="crop-stage">
+    <div id="crop-mask" class="crop-mask"></div>
+    <img id="crop-img" src="" alt="">
+    <div class="crop-hint" data-i18n="crop.hint">Drag to move • Pinch to zoom</div>
+  </div>
+  <div class="crop-controls">
+    <div class="crop-control-row">
+      <span data-i18n="crop.zoom">ZOOM</span>
+      <input type="range" class="crop-slider" id="crop-zoom" min="0.1" max="5" step="0.01" value="1">
+    </div>
+    <div class="crop-control-row">
+      <span data-i18n="crop.rotate">ROTATE</span>
+      <input type="range" class="crop-slider" id="crop-rotate" min="-180" max="180" step="1" value="0">
+    </div>
+  </div>
+</div>
+
 <div id="toasts"></div>
 
 <!-- ── SCRIPTS (порядок важливий) ───────────────────────── -->

@@ -21,19 +21,24 @@ ${grouped.length === 0
 }
 
 function _groupNotifs(notifs) {
-  // Group: same user liked multiple posts → show once
+  // Групування: якщо один юзер лайкнув кілька постів підряд -> показуємо одним рядком
+  // Це запобігає спаму в стрічці сповіщень
   const out = [], seen = new Set();
   for (const n of notifs) {
     if (seen.has(n.id)) continue;
-    if (n.type==='like') {
-      const sameUser = notifs.filter(x=>x.userId===n.userId&&x.type==='like'&&!seen.has(x.id));
-      if (sameUser.length>1) {
-        const merged = {...sameUser[0], _count:sameUser.length, _ids:sameUser.map(x=>x.id)};
-        sameUser.forEach(x=>seen.add(x.id));
-        out.push(merged); continue;
+    if (n.type === 'like') {
+      // Шукаємо всі лайки від цього ж користувача
+      const sameUserLikes = notifs.filter(x => x.userId === n.userId && x.type === 'like' && !seen.has(x.id));
+      if (sameUserLikes.length > 1) {
+        // Згортаємо в одне сповіщення з лічильником
+        const merged = { ...sameUserLikes[0], _count: sameUserLikes.length, _ids: sameUserLikes.map(x => x.id) };
+        sameUserLikes.forEach(x => seen.add(x.id));
+        out.push(merged);
+        continue;
       }
     }
-    seen.add(n.id); out.push(n);
+    seen.add(n.id);
+    out.push(n);
   }
   return out;
 }
@@ -81,15 +86,16 @@ function renderNotifRow(n, idx) {
     default: text = `@${u.username}`;
   }
 
-  // Кнопки дій для запитів (Action 1 та Action 2)
+  // Кнопки дій для запитів (Дія 1: Дозволити перегляд)
   const actionBtns = (n.type === 'request' && !n._approved) ? `
     <div style="display:flex; gap:6px; margin-top:8px">
-      <button onclick="event.stopPropagation(); approveRequest('${n.userId}')" style="padding:6px 14px; border-radius:8px; background:var(--grad); border:none; color:#000; font-size:12px; font-weight:600; cursor:pointer">${t('notif.approve')}</button>
+      <button onclick="event.stopPropagation(); approveRequest('${n.userId}')" style="padding:6px 14px; border-radius:8px; background:var(--grad); border:none; color:#000; font-size:12px; font-weight:600; cursor:pointer">${t('social.allow')}</button>
       <button onclick="event.stopPropagation(); declineRequest('${n.userId}')" style="padding:6px 14px; border-radius:8px; background:var(--s3); border:1px solid var(--b1); color:var(--t2); font-size:12px; font-weight:600; cursor:pointer">${t('notif.decline')}</button>
     </div>` : '';
 
+  // Дія 2: Підписатися у відповідь (Друзі) — з'являється тільки після схвалення
   const isReq = getFollowStatus(n.userId) === 'requested';
-  const followBackBtn = (n.type === 'follow' || n.type === 'approved' || (n.type === 'request' && n._approved)) && !isFriend(n.userId) && getFollowStatus(n.userId) !== 'following'
+  const followBackBtn = ((n.type === 'follow' || n.type === 'approved') || (n.type === 'request' && n._approved)) && !isFriend(n.userId) && getFollowStatus(n.userId) !== 'following'
     ? `<button onclick="event.stopPropagation(); followBack('${n.userId}')" style="padding:6px 14px; border-radius:20px; border:1px solid var(--b2); background:transparent; color:var(--t1); font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap; flex-shrink:0; margin-left:auto">${isReq ? t('profile.requested') : t('notif.followBack')}</button>`
     : '';
 

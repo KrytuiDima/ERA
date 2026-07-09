@@ -65,8 +65,9 @@ function makeVibeCode(baseHex, uid, w = 100, h = 100, opts = {}) {
   const stroke = isFrnd ? myCols[0] : 'rgba(255,255,255,.1)';
   const sw = isFrnd ? '4' : '0.5';
   const glow = isFrnd ? `filter: drop-shadow(0 0 5px ${myCols[0]}cc);` : '';
+  const neonClass = isFrnd ? ' neon-accent' : '';
 
-  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" style="display:block; ${glow}">
+  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" class="${neonClass}" style="display:block; ${glow}">
     <defs>
       <linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="1">
         <stop offset="0%" stop-color="${cols[0]}"/>

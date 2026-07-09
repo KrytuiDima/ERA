@@ -72,10 +72,10 @@ function renderPostCard(post, delay = 0) {
   const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff' });
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
   const friendMark = frnd
-    ? `<span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${myCols[0]}; margin-left:6px; box-shadow:0 0 8px ${myCols[0]}; vertical-align:middle" title="Друг"></span>`
+    ? `<span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${myCols[0]}; margin-left:6px; box-shadow:0 0 10px ${myCols[0]}, 0 0 20px ${myCols[0]}; vertical-align:middle; border:1px solid #fff" title="Друг"></span>`
     : '';
 
-  return `<div class="post-card" style="animation-delay:${delay}ms" id="post-${post.id}"
+  return `<div class="post-card${frnd ? ' post-friend' : ''}" style="animation-delay:${delay}ms; ${frnd ? '--friend-color:' + myCols[0] : ''}" id="post-${post.id}"
     oncontextmenu="event.preventDefault();showPostMenu('${post.id}',event.clientX,event.clientY)"
     ontouchstart="_lpStart(event,'${post.id}')" ontouchmove="_lpMove()" ontouchend="_lpEnd()">
   <div class="post-head">
