@@ -2,7 +2,16 @@
 
 // ── Scroll lock ───────────────────────────────────────────
 function lockScroll()   { document.body.classList.add('scroll-locked'); }
-function unlockScroll() { document.body.classList.remove('scroll-locked'); }
+function unlockScroll() {
+  // Розблоковуємо скрол тільки якщо немає інших відкритих оверлеїв
+  const openOverlays = document.querySelectorAll('.overlay:not(.hidden)');
+  const cropModal = document.getElementById('crop-modal');
+  const lightbox = document.getElementById('lightbox');
+
+  if (openOverlays.length === 0 && (!cropModal || cropModal.classList.contains('hidden')) && !lightbox) {
+    document.body.classList.remove('scroll-locked');
+  }
+}
 
 // ── History API (Керування історією та кнопкою Назад) ─────
 // Модальні вікна інтегровані з історією браузера для коректної роботи кнопки "Назад"
@@ -42,7 +51,7 @@ function _closeTopModal(fromPopState = false) {
     cancelCrop(fromPopState);
     return;
   }
-  // 4. Стандартні Overlay (Створення поста, Коментарі, Профіль)
+  // 4. Стандартні Overlay (Створення поста, Коментарі, Профіль, Налаштування)
   const open = [...document.querySelectorAll('.overlay:not(.hidden)')];
   if (open.length) {
     const o = open[open.length - 1];
@@ -312,12 +321,13 @@ function showCropTool(src, callback, opts = {}) {
 
   const modal = document.getElementById('crop-modal');
   modal.classList.remove('hidden');
+  _refreshStaticUI(); // Update translations
   lockScroll();
   eraPush('crop');
 
   const img = document.getElementById('crop-img');
   const zS = document.getElementById('crop-zoom'), rS = document.getElementById('crop-rotate');
-  if (zS) zS.value = 1;
+  if (zS) { zS.value = 1; zS.min = 0.1; zS.max = 5; }
   if (rS) rS.value = 0;
 
   img.onload = () => {

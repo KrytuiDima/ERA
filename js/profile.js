@@ -18,11 +18,11 @@ function renderProfile(uid) {
   const reqCount  = own ? getRequestCount() : 0;
   const myPosts   = POSTS.filter(p=>p.userId===uid);
 
-  // Сортування: закріплені пости завжди перші (Pin System)
+  // Сортування: закріплені пости завжди перші (Pin System — макс 3 пости)
   const pinnedIds = getPinnedPosts(uid);
   const sorted = [
-    ...pinnedIds.map(pid=>myPosts.find(p=>p.id===pid)).filter(Boolean),
-    ...myPosts.filter(p=>!pinnedIds.includes(p.id)).sort((a,b)=>b.ts-a.ts),
+    ...pinnedIds.map(pid => myPosts.find(p => p.id === pid)).filter(Boolean),
+    ...myPosts.filter(p => !pinnedIds.includes(p.id)).sort((a, b) => b.ts - a.ts),
   ];
 
   // Визначення кнопки підписки/редагування
@@ -96,8 +96,8 @@ function renderProfile(uid) {
 ${!canSee
   ? `<div class="empty-state" style="margin-top:40px; animation:fadeIn .3s ease">
       <div class="lock-screen-icon" style="font-size:48px; margin-bottom:16px">🔒</div>
-      <div class="empty-txt" style="font-size:14px; font-weight:600">Закритий акаунт</div>
-      <div class="empty-txt" style="font-size:12px; color:var(--t3); margin-top:4px">Підпишись, щоб бачити пости та медіа</div>
+      <div class="empty-txt" style="font-size:14px; font-weight:600">${t('social.privateAcc')}</div>
+      <div class="empty-txt" style="font-size:12px; color:var(--t3); margin-top:4px">${t('social.privateAccMsg')}</div>
     </div>`
   : sorted.length===0
     ? `<div class="empty-state"><div class="empty-ico">📸</div><div class="empty-txt">${own?t('post.emptyPosts'):t('post.emptyOtherPosts')}</div></div>`

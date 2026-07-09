@@ -27,16 +27,21 @@ async function onPostFile(e) {
   // Для першого фото завжди відкриваємо кропер 4:5
   const firstSrc = await readFile(files[0]);
   
-  showCropTool(firstSrc, async (cropped) => {
-    if (files.length > 1) {
-      // Якщо вибрано кілька фото — інші додаються автоматично (можна розширити до кропу всіх)
-      const rest = await Promise.all(files.slice(1).map(readFile));
-      POST_IMGS = [...POST_IMGS, cropped, ...rest].slice(0, 10);
-    } else {
-      POST_IMGS = [...POST_IMGS, cropped].slice(0, 10);
+  // Послідовна обробка всіх вибраних фото через кропер
+  let currentIdx = 0;
+  const processNext = async () => {
+    if (currentIdx >= files.length || POST_IMGS.length >= 10) {
+      renderUploadGrid();
+      return;
     }
-    renderUploadGrid();
-  }, { ratio: 4/5 });
+    const src = await readFile(files[currentIdx]);
+    showCropTool(src, (cropped) => {
+      POST_IMGS.push(cropped);
+      currentIdx++;
+      processNext();
+    }, { ratio: 4/5 });
+  };
+  processNext();
 }
 
 function renderUploadGrid() {
