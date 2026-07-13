@@ -71,6 +71,8 @@ function renderPostCard(post, delay = 0) {
   // Акцент для друзів: неон кольору ВЛАСНОГО вайбу
   const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff' });
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
+
+  const nickStyle = frnd ? `color:${myCols[0]}; text-shadow:0 0 8px ${myCols[0]}66;` : '';
   const friendMark = frnd
     ? `<span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${myCols[0]}; margin-left:6px; box-shadow:0 0 8px ${myCols[0]}; vertical-align:middle" title="Друг"></span>`
     : '';
@@ -81,7 +83,7 @@ function renderPostCard(post, delay = 0) {
   <div class="post-head">
     <div class="post-ava" onclick="${own?`setView('profile')`:`openUserCard('${u.id}')`}">${avatarHTML(u,38,{friend:true})}</div>
     <div class="post-meta">
-      <div class="post-uname" onclick="${own?`setView('profile')`:`openUserCard('${u.id}')`}">@${esc(u.username)}${friendMark}</div>
+      <div class="post-uname" style="${nickStyle}" onclick="${own?`setView('profile')`:`openUserCard('${u.id}')`}">@${esc(u.username)}${friendMark}</div>
       <div class="post-time">${fmtTime(post.ts)}</div>
     </div>
     <div class="vibe-dot" style="background:${frnd ? myCols[0] : cols[0]}${frnd?';box-shadow:0 0 8px '+myCols[0]:''}; ${frnd ? 'outline: 1px solid ' + myCols[0] : ''}"></div>
@@ -216,7 +218,7 @@ function editDesc(pid) {
 }
 
 // ── Comments ──────────────────────────────────────────────
-function openCmts(pid) {
+function openCmts(pid, focusCmtId = null) {
   OPEN_POST=pid; CMT_PHOTO=null;
   document.getElementById('cmt-ph-prev').classList.add('hidden');
   document.getElementById('cmt-input').value='';
@@ -232,24 +234,37 @@ function openCmts(pid) {
     </div>
     ${p.desc?`<div style="font-size:13px;color:var(--t2);line-height:1.55">${tags(esc(p.desc))}</div>`:''}
   </div>
-  <div class="cmt-list" id="cmt-list">${p.comments.map(c=>renderCmt(c)).join('')}</div>
+  <div class="cmt-list" id="cmt-list">${p.comments.map(c=>renderCmt(c, c.id === focusCmtId)).join('')}</div>
   ${p.comments.length===0?`<div style="text-align:center;font-size:12px;color:var(--t3);padding:16px 0">${t('post.firstComment')}</div>`:''}`;
   openModal('modal-cmt');
+
+  if (focusCmtId) {
+    setTimeout(() => {
+      const el = document.getElementById('cmt-' + focusCmtId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.style.background = 'rgba(255,255,255,0.05)';
+        setTimeout(() => el.style.background = '', 2000);
+      }
+    }, 500);
+  }
 }
 
 // Рендеринг одного коментаря
 // Реалізовано відображення фото у вигляді квадратного прев'ю з відкриттям у загальному лайтбоксі
-function renderCmt(c) {
+function renderCmt(c, isFocused = false) {
   const u = getUser(c.userId);
   const frnd = isFriend(c.userId);
   const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff' });
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
 
-  return `<div class="cmt-item">
+  const nickStyle = frnd ? `color:${myCols[0]}; text-shadow:0 0 7px ${myCols[0]}66;` : '';
+
+  return `<div class="cmt-item" id="cmt-${c.id}" ${isFocused ? 'style="background:rgba(255,255,255,0.05)"' : ''}>
   <div class="cmt-ava" style="cursor:pointer" onclick="openUserCard('${u.id}')">${avatarHTML(u, 30, { friend: true })}</div>
   <div class="cmt-bwrap">
     <div>
-      <span class="cmt-uname" style="cursor:pointer" onclick="openUserCard('${u.id}')">@${esc(u.username)}</span>
+      <span class="cmt-uname" style="cursor:pointer; ${nickStyle}" onclick="openUserCard('${u.id}')">@${esc(u.username)}</span>
       ${frnd ? `<span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:${myCols[0]}; margin-left:5px; vertical-align:middle; box-shadow:0 0 5px ${myCols[0]}"></span>` : ''}
       <span class="cmt-utime">${fmtTime(c.ts)}</span>
     </div>

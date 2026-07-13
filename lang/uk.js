@@ -94,8 +94,8 @@ window.ERA_LANG.uk = {
     wantsToFollow:'@{user} хоче підписатися на тебе',
     requestApproved:'@{user} схвалив твій запит',
     mentioned:'@{user} згадав тебе у пості',
-    followBack:'Підписатися у відповідь',
-    approve:'Схвалити', decline:'Видалити',
+    followBack:'+ Підписатися у відповідь',
+    approve:'Дозволити перегляд', decline:'Видалити',
   },
   mood:{
     question:'Як твій настрій сьогодні?',

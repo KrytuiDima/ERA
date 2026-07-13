@@ -91,9 +91,12 @@ async function approveRequest(fromUid) {
   FOLLOWERS.set(fromUid, true);
   REQUESTS.delete(fromUid);
 
-  // Оновлюємо статус у списку сповіщень
-  const n = NOTIFS.find(x => x.userId === fromUid && x.type === 'request');
-  if (n) n._approved = true;
+  // Оновлюємо статус у списку сповіщень: Дія 1 відкриває можливість Дії 2
+  const n = NOTIFS.find(x => x.userId === fromUid && (x.type === 'request' || x.type === 'follow'));
+  if (n) {
+    n._approved = true;
+    n.type = 'follow'; // Змінюємо тип на follow, щоб з'явилася кнопка "Підписатися у відповідь"
+  }
 
   // Надсилаємо сповіщення про схвалення
   addNotif({ type: 'approved', fromUid: APP.user.id, toUid: fromUid });
