@@ -72,7 +72,7 @@ function renderProfile(uid) {
   <!-- Клікабельне посилання URL -->
   ${u.website?`<div class="profile-link">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-    <a href="${u.website.startsWith('http')?u.website:'https://'+u.website}" target="_blank" rel="noopener noreferrer">${u.website.replace(/^https?:\/\//,'')}</a>
+    <a href="${u.website.startsWith('http')?u.website:'https://'+u.website}" target="_blank" rel="noopener noreferrer">${esc(u.website.replace(/^https?:\/\//,''))}</a>
   </div>`:''}
   
   <div class="profile-stats">
@@ -96,8 +96,8 @@ function renderProfile(uid) {
 ${!canSee
   ? `<div class="empty-state" style="margin-top:40px; animation:fadeIn .3s ease">
       <div class="lock-screen-icon" style="font-size:48px; margin-bottom:16px">🔒</div>
-      <div class="empty-txt" style="font-size:14px; font-weight:600">Закритий акаунт</div>
-      <div class="empty-txt" style="font-size:12px; color:var(--t3); margin-top:4px">Підпишись, щоб бачити пости та медіа</div>
+      <div class="empty-txt" style="font-size:14px; font-weight:600">${t('social.privateAcc')}</div>
+      <div class="empty-txt" style="font-size:12px; color:var(--t3); margin-top:4px">${t('social.privateAccMsg')}</div>
     </div>`
   : sorted.length===0
     ? `<div class="empty-state"><div class="empty-ico">📸</div><div class="empty-txt">${own?t('post.emptyPosts'):t('post.emptyOtherPosts')}</div></div>`

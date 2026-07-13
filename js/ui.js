@@ -42,11 +42,17 @@ function _closeTopModal(fromPopState = false) {
     cancelCrop(fromPopState);
     return;
   }
-  // 4. Стандартні Overlay (Створення поста, Коментарі, Профіль)
+  // 4. Стандартні Overlay (Створення поста, Коментарі, Профіль, Мова)
   const open = [...document.querySelectorAll('.overlay:not(.hidden)')];
   if (open.length) {
     const o = open[open.length - 1];
-    _animateSheetOut(o, null, fromPopState);
+    if (o.id === 'modal-user' || o.id === 'modal-cmt' || o.id === 'modal-create' || o.id === 'lang-picker') {
+       _animateSheetOut(o, null, fromPopState);
+    } else {
+       o.remove(); // For dynamically created overlays like lang-picker (if not using id correctly) or others
+       unlockScroll();
+       if (!fromPopState && _histDepth > 0) { _histDepth--; history.back(); }
+    }
   }
 }
 
@@ -60,11 +66,15 @@ window.addEventListener('popstate', e => {
 // Плавна анімація виїзду шторки вниз
 function _animateSheetOut(overlayEl, cb, fromPopState = false) {
   const sheet = overlayEl.querySelector('.sheet');
+  const isDynamic = overlayEl.id === 'lang-picker';
+
   if (sheet) {
     sheet.style.transition = 'transform .28s cubic-bezier(.22,1,.36,1)';
     sheet.style.transform = 'translateY(105%)';
     setTimeout(() => {
-      overlayEl.classList.add('hidden');
+      if (isDynamic) overlayEl.remove();
+      else overlayEl.classList.add('hidden');
+
       sheet.style.transform = '';
       sheet.style.transition = '';
       unlockScroll();
@@ -76,7 +86,9 @@ function _animateSheetOut(overlayEl, cb, fromPopState = false) {
       }
     }, 270);
   } else {
-    overlayEl.classList.add('hidden');
+    if (isDynamic) overlayEl.remove();
+    else overlayEl.classList.add('hidden');
+
     unlockScroll();
     if (cb) cb();
     if (!fromPopState && _histDepth > 0) {
@@ -393,28 +405,50 @@ function _initCropEvents() {
 function applyCrop() {
   const img=document.getElementById('crop-img'), stage=document.getElementById('crop-stage');
   const sw=stage.clientWidth, sh=stage.clientHeight;
-  const fw=Math.round(sw*.88), fh=Math.round(fw/_cropOptions.ratio);
-  const fx=(sw-fw)/2, fy=(sh-fh)/2;
-  const canvas=document.createElement('canvas');
-  const OUT=800; canvas.width=OUT; canvas.height=Math.round(OUT/_cropOptions.ratio);
-  const ctx=canvas.getContext('2d');
 
-  ctx.translate(canvas.width/2, canvas.height/2);
+  // Рамка в UI
+  const fw_ui = Math.round(sw * 0.88);
+  const fh_ui = Math.round(fw_ui / _cropOptions.ratio);
+  const fx_ui = (sw - fw_ui) / 2;
+  const fy_ui = (sh - fh_ui) / 2;
+
+  const canvas = document.createElement('canvas');
+  // Висока якість для експорту (1080p по ширині)
+  const OUT_W = 1080;
+  const OUT_H = Math.round(OUT_W / _cropOptions.ratio);
+  canvas.width = OUT_W;
+  canvas.height = OUT_H;
+  const ctx = canvas.getContext('2d');
+
+  // Очищення фону (чорний для AMOLED)
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, OUT_W, OUT_H);
+
+  ctx.save();
+  ctx.translate(OUT_W / 2, OUT_H / 2);
   ctx.rotate(_cropRotate * Math.PI / 180);
-  ctx.scale(_cropScale, _cropScale);
 
-  // Calculate relative position
-  const drawW = img.naturalWidth;
-  const drawH = img.naturalHeight;
-  const dx = (_cropX - (sw/2 - (fx + fw/2))) / _cropScale;
-  const dy = (_cropY - (sh/2 - (fy + fh/2))) / _cropScale;
+  // Коефіцієнт масштабування від UI до фінального полотна
+  const exportScaleFactor = OUT_W / fw_ui;
+  ctx.scale(_cropScale * exportScaleFactor, _cropScale * exportScaleFactor);
 
-  ctx.drawImage(img, dx - drawW/2, dy - drawH/2, drawW, drawH);
+  // Обчислення зміщення відносно центру рамки
+  // _cropX/_cropY — це зміщення центру картинки відносно центру екрану
+  // Нам треба зміщення відносно центру РАМКИ
+  const centerX_ui = sw / 2;
+  const centerY_ui = sh / 2;
 
-  const result=canvas.toDataURL('image/jpeg',.9);
+  const dx = _cropX / _cropScale;
+  const dy = _cropY / _cropScale;
+
+  ctx.drawImage(img, dx - img.naturalWidth / 2, dy - img.naturalHeight / 2, img.naturalWidth, img.naturalHeight);
+  ctx.restore();
+
+  const result = canvas.toDataURL('image/jpeg', 0.9);
   document.getElementById('crop-modal').classList.add('hidden');
+  unlockScroll();
   if(_cropCallback) _cropCallback(result);
-  _cropCallback=null;
+  _cropCallback = null;
 }
 
 function cancelCrop(fromPopState=false) {

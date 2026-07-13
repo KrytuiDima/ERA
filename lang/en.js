@@ -94,8 +94,8 @@ window.ERA_LANG.en = {
     wantsToFollow:'@{user} wants to follow you',
     requestApproved:'@{user} approved your request',
     mentioned:'@{user} mentioned you in a post',
-    followBack:'Follow back',
-    approve:'Approve', decline:'Remove',
+    followBack:'+ Follow back',
+    approve:'Allow viewing', decline:'Remove',
   },
   mood:{
     question:"What's your mood today?",

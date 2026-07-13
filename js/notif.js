@@ -103,7 +103,7 @@ function renderNotifRow(n, idx) {
   </div>
 
   <!-- Зона B: Текст -> Пост -->
-  <div style="flex:1; min-width:0; cursor:pointer" onclick="${post ? `expandPost('${post.id}')` : ''}">
+  <div style="flex:1; min-width:0; cursor:pointer" onclick="${post ? `expandPost('${post.id}', null, ${n.type === 'comment' ? `'${n.cmtId || ''}'` : 'null'})` : ''}">
     <div style="font-size:13px; color:var(--t1); line-height:1.4">${text}</div>
     <div style="font-size:10px; color:var(--t3); margin-top:3px">${fmtTime(n.ts)}</div>
     ${actionBtns}
@@ -112,7 +112,7 @@ function renderNotifRow(n, idx) {
   ${followBackBtn}
 
   <!-- Зона C: Прев'ю поста -> Лайтбокс -->
-  ${post ? `<div style="width:40px; height:40px; border-radius:8px; overflow:hidden; flex-shrink:0; background:${postBg}; cursor:pointer" onclick="expandPost('${post.id}')">
+  ${post ? `<div style="width:40px; height:40px; border-radius:8px; overflow:hidden; flex-shrink:0; background:${postBg}; cursor:pointer" onclick="expandPost('${post.id}', null, ${n.type === 'comment' ? `'${n.cmtId || ''}'` : 'null'})">
     ${postImg ? `<img src="${postImg}" style="width:100%; height:100%; object-fit:cover">` : ''}
   </div>` : ''}
 </div>`;

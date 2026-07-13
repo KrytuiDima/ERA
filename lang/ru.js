@@ -94,8 +94,8 @@ window.ERA_LANG.ru = {
     wantsToFollow:'@{user} хочет подписаться на тебя',
     requestApproved:'@{user} принял твой запрос',
     mentioned:'@{user} упомянул вас в посте',
-    followBack:'Подписаться в ответ',
-    approve:'Принять', decline:'Удалить',
+    followBack:'+ Подписаться в ответ',
+    approve:'Разрешить просмотр', decline:'Удалить',
   },
   mood:{
     question:'Какое у тебя настроение сегодня?',
