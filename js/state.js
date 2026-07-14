@@ -88,8 +88,6 @@ function fmtTime(ts) {
   
   if (d < 86400000) {
     const h = Math.floor(d / 3600000);
-    // Якщо пройшло менше 24 годин, але це вже інша доба — можна було б писати "вчора", 
-    // але для простоти використовуємо години до 24
     return t('time.hour', { n: h });
   }
   
@@ -99,7 +97,8 @@ function fmtTime(ts) {
   
   // Для старих постів показуємо дату
   const date = new Date(ts);
-  return date.toLocaleDateString(APP.lang === 'uk' ? 'uk-UA' : (APP.lang === 'ru' ? 'ru-RU' : 'en-US'), {
+  const curLang = localStorage.getItem('era_lang') || 'en';
+  return date.toLocaleDateString(curLang === 'uk' ? 'uk-UA' : (curLang === 'ru' ? 'ru-RU' : 'en-US'), {
     day: 'numeric', month: 'short'
   });
 }

@@ -72,16 +72,18 @@ function renderPostCard(post, delay = 0) {
   const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff' });
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
   const friendMark = frnd
-    ? `<span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${myCols[0]}; margin-left:6px; box-shadow:0 0 8px ${myCols[0]}; vertical-align:middle" title="Друг"></span>`
+    ? `<span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${myCols[0]}; margin-left:6px; box-shadow:0 0 8px ${myCols[0]}; vertical-align:middle; border:1px solid #fff" title="${t('profile.friends')}"></span>`
     : '';
+  const frndCls = frnd ? ' is-friend' : '';
+  const frndStyle = frnd ? `style="text-shadow: 0 0 8px ${myCols[0]}, 0 0 12px ${myCols[0]}cc; color: #fff"` : '';
 
-  return `<div class="post-card" style="animation-delay:${delay}ms" id="post-${post.id}"
+  return `<div class="post-card${frndCls}" style="animation-delay:${delay}ms" id="post-${post.id}"
     oncontextmenu="event.preventDefault();showPostMenu('${post.id}',event.clientX,event.clientY)"
     ontouchstart="_lpStart(event,'${post.id}')" ontouchmove="_lpMove()" ontouchend="_lpEnd()">
   <div class="post-head">
     <div class="post-ava" onclick="${own?`setView('profile')`:`openUserCard('${u.id}')`}">${avatarHTML(u,38,{friend:true})}</div>
     <div class="post-meta">
-      <div class="post-uname" onclick="${own?`setView('profile')`:`openUserCard('${u.id}')`}">@${esc(u.username)}${friendMark}</div>
+      <div class="post-uname" onclick="${own?`setView('profile')`:`openUserCard('${u.id}')`}" ${frndStyle}>@${esc(u.username)}${friendMark}</div>
       <div class="post-time">${fmtTime(post.ts)}</div>
     </div>
     <div class="vibe-dot" style="background:${frnd ? myCols[0] : cols[0]}${frnd?';box-shadow:0 0 8px '+myCols[0]:''}; ${frnd ? 'outline: 1px solid ' + myCols[0] : ''}"></div>
@@ -244,13 +246,14 @@ function renderCmt(c) {
   const frnd = isFriend(c.userId);
   const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff' });
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
+  const frndStyle = frnd ? `style="text-shadow: 0 0 6px ${myCols[0]}; color: #fff"` : '';
 
-  return `<div class="cmt-item">
+  return `<div class="cmt-item${frnd ? ' is-friend' : ''}" id="cmt-${c.id}">
   <div class="cmt-ava" style="cursor:pointer" onclick="openUserCard('${u.id}')">${avatarHTML(u, 30, { friend: true })}</div>
   <div class="cmt-bwrap">
     <div>
-      <span class="cmt-uname" style="cursor:pointer" onclick="openUserCard('${u.id}')">@${esc(u.username)}</span>
-      ${frnd ? `<span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:${myCols[0]}; margin-left:5px; vertical-align:middle; box-shadow:0 0 5px ${myCols[0]}"></span>` : ''}
+      <span class="cmt-uname" style="cursor:pointer" onclick="openUserCard('${u.id}')" ${frndStyle}>@${esc(u.username)}</span>
+      ${frnd ? `<span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:${myCols[0]}; margin-left:5px; vertical-align:middle; box-shadow:0 0 5px ${myCols[0]}; border:0.5px solid #fff"></span>` : ''}
       <span class="cmt-utime">${fmtTime(c.ts)}</span>
     </div>
     ${c.text ? `<div class="cmt-text">${esc(c.text)}</div>` : ''}

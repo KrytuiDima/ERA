@@ -86,14 +86,17 @@ async function toggleFollowUser(uid, btn) {
 
 // ── Approve / Decline ─────────────────────────────────────
 // Схвалення запиту: Дія 1 — Дозволити перегляд
-// Це дає користувачу статус підписника та доступ до контенту
+// Це дає користувачу статус підписника та доступ до контенту (Action 1)
 async function approveRequest(fromUid) {
   FOLLOWERS.set(fromUid, true);
   REQUESTS.delete(fromUid);
 
-  // Оновлюємо статус у списку сповіщень
+  // Оновлюємо статус у списку сповіщень: змінюємо тип на 'follow', щоб з'явилася кнопка Action 2
   const n = NOTIFS.find(x => x.userId === fromUid && x.type === 'request');
-  if (n) n._approved = true;
+  if (n) {
+    n.type = 'follow'; // Тепер це просто підписка, що дозволяє "Підписатися у відповідь"
+    n._approved = true;
+  }
 
   // Надсилаємо сповіщення про схвалення
   addNotif({ type: 'approved', fromUid: APP.user.id, toUid: fromUid });
@@ -106,10 +109,12 @@ async function approveRequest(fromUid) {
   renderNotifBadge();
 }
 
-// Крок 2 — Підписатися у відповідь (стають друзями)
+// Крок 2 — Підписатися у відповідь (стають друзями) (Action 2)
 async function followBack(uid) {
+  // Коли підписка стає взаємною — вони автоматично стають "Друзями" (логіка в followUser)
   await followUser(uid);
   if (APP.view === 'notif') renderNotif();
+  if (APP.view === 'profile') renderProfile(uid);
 }
 
 async function declineRequest(fromUid) {
