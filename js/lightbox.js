@@ -1,18 +1,42 @@
 // js/lightbox.js — Lightbox with physics (Перегляд медіа)
 
-function expandPost(pid, ctx) {
+/**
+ * Відкриття поста на весь екран
+ * @param {string} pid - ID поста
+ * @param {string} ctx - Контекст (feed/profile)
+ * @param {string} focusCmtId - ID коментаря для автоматичного підскролу
+ */
+function expandPost(pid, ctx, focusCmtId = null) {
   const p = POSTS.find(x=>x.id===pid);
   if (p && !SESSION_VIEWS.has('lb-'+pid)) { SESSION_VIEWS.add('lb-'+pid); p.views=(p.views||0)+1; }
+
   if (ctx==='profile' && APP.profileUid) {
     LB_LIST = POSTS.filter(p=>p.userId===APP.profileUid).sort((a,b)=>b.ts-a.ts);
   } else {
     const feed = getFeedPosts();
     LB_LIST = feed.length ? feed : [...POSTS].sort((a,b)=>b.ts-a.ts);
   }
+
   LB_IDX = LB_LIST.findIndex(p=>p.id===pid);
   if (LB_IDX<0) LB_IDX=0;
-  lockScroll(); eraPush('lightbox');
+
+  lockScroll();
+  eraPush('lightbox');
   buildLightbox();
+
+  if (focusCmtId) {
+    setTimeout(() => {
+      openCmts(pid);
+      setTimeout(() => {
+        const cel = document.getElementById('cmt-' + focusCmtId);
+        if (cel) {
+          cel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          cel.style.background = 'rgba(255,255,255,0.05)';
+          setTimeout(() => cel.style.background = '', 2000);
+        }
+      }, 500);
+    }, 300);
+  }
 }
 
 function _closeLightboxInternal(fromPopState=false) {
@@ -197,6 +221,11 @@ function lbDoubleTap(pid, imgArea) {
   const heart=document.createElement('div');
   heart.className='like-heart-anim';
   heart.style.fontSize = '100px';
+  heart.style.position = 'absolute';
+  heart.style.left = '50%';
+  heart.style.top = '50%';
+  heart.style.transform = 'translate(-50%, -50%)';
+  heart.style.zIndex = '100';
   heart.textContent='❤️';
   imgArea.appendChild(heart);
   setTimeout(()=>heart.remove(),700);

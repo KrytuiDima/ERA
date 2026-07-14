@@ -38,7 +38,9 @@ function renderProfile(uid) {
   }
 
   // Матриця доступу: чи може користувач бачити контент
-  const canSee = !isUserPrivate(uid) || own || isF;
+  // Action 1 (approveRequest) встановлює FOLLOWERS.set(fromUid, true)
+  const isFollower = FOLLOWERS.get(uid) === true;
+  const canSee = !isUserPrivate(uid) || own || isF || isFollower;
   const bannerImg = u.banner ? `<img src="${u.banner}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0">` : '';
 
   // Формування HTML профілю
@@ -118,13 +120,13 @@ function renderFullProfile(uid) {
   renderProfile(uid);
 }
 
-// Зміна аватара з використанням кропера (1:1)
+// Зміна аватара з використанням Медіа-студії (1:1)
 async function changeAva(e) {
   const f=e.target.files[0]; if(!f) return;
   const r=new FileReader();
   r.onload=ev=>{
-    // Викликаємо кропер з пропорціями 1:1
-    showCropTool(ev.target.result, async res => {
+    // Викликаємо студію з пропорціями 1:1
+    openStudio(ev.target.result, async res => {
       APP.user.avatar = res; 
       await saveUserData();
       document.getElementById('sb-ava').innerHTML = avatarHTML(APP.user,34);
@@ -136,13 +138,13 @@ async function changeAva(e) {
   r.readAsDataURL(f);
 }
 
-// Зміна банера профілю з використанням кропера (16:9)
+// Зміна банера профілю з використанням Медіа-студії (16:9)
 async function changeBanner(e) {
   const f=e.target.files[0]; if(!f) return;
   const r=new FileReader();
   r.onload=ev=>{
-    // Викликаємо кропер з пропорціями 16:9
-    showCropTool(ev.target.result, async res => {
+    // Викликаємо студію з пропорціями 16:9
+    openStudio(ev.target.result, async res => {
       APP.user.banner = res; 
       await saveUserData();
       renderProfile(APP.user.id); 
