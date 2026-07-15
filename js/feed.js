@@ -75,13 +75,16 @@ function renderPostCard(post, delay = 0) {
     ? `<span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${myCols[0]}; margin-left:6px; box-shadow:0 0 8px ${myCols[0]}; vertical-align:middle" title="Друг"></span>`
     : '';
 
+  // Спеціальний неоновий стиль для нікнеймів друзів (використовує вайб поточного юзера)
+  const unameStyle = frnd ? `color:${myCols[0]}; text-shadow: 0 0 5px ${myCols[0]}66;` : '';
+
   return `<div class="post-card" style="animation-delay:${delay}ms" id="post-${post.id}"
     oncontextmenu="event.preventDefault();showPostMenu('${post.id}',event.clientX,event.clientY)"
     ontouchstart="_lpStart(event,'${post.id}')" ontouchmove="_lpMove()" ontouchend="_lpEnd()">
   <div class="post-head">
     <div class="post-ava" onclick="${own?`setView('profile')`:`openUserCard('${u.id}')`}">${avatarHTML(u,38,{friend:true})}</div>
     <div class="post-meta">
-      <div class="post-uname" onclick="${own?`setView('profile')`:`openUserCard('${u.id}')`}">@${esc(u.username)}${friendMark}</div>
+      <div class="post-uname" style="${unameStyle}" onclick="${own?`setView('profile')`:`openUserCard('${u.id}')`}">@${esc(u.username)}${friendMark}</div>
       <div class="post-time">${fmtTime(post.ts)}</div>
     </div>
     <div class="vibe-dot" style="background:${frnd ? myCols[0] : cols[0]}${frnd?';box-shadow:0 0 8px '+myCols[0]:''}; ${frnd ? 'outline: 1px solid ' + myCols[0] : ''}"></div>
@@ -216,7 +219,12 @@ function editDesc(pid) {
 }
 
 // ── Comments ──────────────────────────────────────────────
-function openCmts(pid) {
+/**
+ * Відкриття шторки коментарів
+ * @param {string} pid - ID поста
+ * @param {string} [focusCmtId] - ID коментаря для виділення
+ */
+function openCmts(pid, focusCmtId) {
   OPEN_POST=pid; CMT_PHOTO=null;
   document.getElementById('cmt-ph-prev').classList.add('hidden');
   document.getElementById('cmt-input').value='';
@@ -235,6 +243,19 @@ function openCmts(pid) {
   <div class="cmt-list" id="cmt-list">${p.comments.map(c=>renderCmt(c)).join('')}</div>
   ${p.comments.length===0?`<div style="text-align:center;font-size:12px;color:var(--t3);padding:16px 0">${t('post.firstComment')}</div>`:''}`;
   openModal('modal-cmt');
+
+  // Якщо потрібно підсвітити конкретний коментар (з нотифікацій)
+  if (focusCmtId) {
+    setTimeout(() => {
+      const el = document.getElementById('cmt-' + focusCmtId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.style.background = 'rgba(255,255,255,0.05)';
+        el.style.borderRadius = '8px';
+        setTimeout(() => el.style.background = '', 2000);
+      }
+    }, 500);
+  }
 }
 
 // Рендеринг одного коментаря
@@ -245,11 +266,13 @@ function renderCmt(c) {
   const myVibe = currentVibeColor(APP.user || { baseColor: '#00c6ff' });
   const myCols = vibeColors(myVibe, hashStr(APP.user?.id || 'me'));
 
-  return `<div class="cmt-item">
+  const unameStyle = frnd ? `color:${myCols[0]}; text-shadow: 0 0 5px ${myCols[0]}66;` : '';
+
+  return `<div class="cmt-item" id="cmt-${c.id}">
   <div class="cmt-ava" style="cursor:pointer" onclick="openUserCard('${u.id}')">${avatarHTML(u, 30, { friend: true })}</div>
   <div class="cmt-bwrap">
     <div>
-      <span class="cmt-uname" style="cursor:pointer" onclick="openUserCard('${u.id}')">@${esc(u.username)}</span>
+      <span class="cmt-uname" style="cursor:pointer; ${unameStyle}" onclick="openUserCard('${u.id}')">@${esc(u.username)}</span>
       ${frnd ? `<span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:${myCols[0]}; margin-left:5px; vertical-align:middle; box-shadow:0 0 5px ${myCols[0]}"></span>` : ''}
       <span class="cmt-utime">${fmtTime(c.ts)}</span>
     </div>

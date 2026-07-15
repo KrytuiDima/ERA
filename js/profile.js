@@ -96,8 +96,8 @@ function renderProfile(uid) {
 ${!canSee
   ? `<div class="empty-state" style="margin-top:40px; animation:fadeIn .3s ease">
       <div class="lock-screen-icon" style="font-size:48px; margin-bottom:16px">🔒</div>
-      <div class="empty-txt" style="font-size:14px; font-weight:600">Закритий акаунт</div>
-      <div class="empty-txt" style="font-size:12px; color:var(--t3); margin-top:4px">Підпишись, щоб бачити пости та медіа</div>
+      <div class="empty-txt" style="font-size:14px; font-weight:600">${t('social.privateAcc')}</div>
+      <div class="empty-txt" style="font-size:12px; color:var(--t3); margin-top:4px">${t('social.privateAccMsg')}</div>
     </div>`
   : sorted.length===0
     ? `<div class="empty-state"><div class="empty-ico">📸</div><div class="empty-txt">${own?t('post.emptyPosts'):t('post.emptyOtherPosts')}</div></div>`
@@ -118,17 +118,17 @@ function renderFullProfile(uid) {
   renderProfile(uid);
 }
 
-// Зміна аватара з використанням кропера (1:1)
+// Зміна аватара з використанням Студіо (1:1)
 async function changeAva(e) {
-  const f=e.target.files[0]; if(!f) return;
-  const r=new FileReader();
-  r.onload=ev=>{
-    // Викликаємо кропер з пропорціями 1:1
-    showCropTool(ev.target.result, async res => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    // Відкриваємо Студіо з пропорціями 1:1 та круглою маскою
+    openStudio(ev.target.result, async res => {
       APP.user.avatar = res; 
       await saveUserData();
-      document.getElementById('sb-ava').innerHTML = avatarHTML(APP.user,34);
-      document.getElementById('bn-ava').innerHTML = avatarHTML(APP.user,24);
+      document.getElementById('sb-ava').innerHTML = avatarHTML(APP.user, 34);
+      document.getElementById('bn-ava').innerHTML = avatarHTML(APP.user, 24);
       renderProfile(APP.user.id); 
       showToast(t('profile.photoUpdated'));
     }, { ratio: 1, round: true });
@@ -136,13 +136,13 @@ async function changeAva(e) {
   r.readAsDataURL(f);
 }
 
-// Зміна банера профілю з використанням кропера (16:9)
+// Зміна банера профілю з використанням Студіо (16:9)
 async function changeBanner(e) {
-  const f=e.target.files[0]; if(!f) return;
-  const r=new FileReader();
-  r.onload=ev=>{
-    // Викликаємо кропер з пропорціями 16:9
-    showCropTool(ev.target.result, async res => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    // Відкриваємо Студіо з пропорціями 16:9
+    openStudio(ev.target.result, async res => {
       APP.user.banner = res; 
       await saveUserData();
       renderProfile(APP.user.id); 
@@ -182,7 +182,7 @@ function openUserCard(uid) {
   <div style="font-size:16px;font-weight:700">${esc(u.displayName||u.username)}${frnd?` <span style="font-size:11px;color:${myCols[0]}">· ${t('profile.friends')}</span>`:''}</div>
   <div style="font-size:12px;color:var(--t2);margin-bottom:${u.bio?'6px':'12px'}">@${esc(u.username)}</div>
   ${u.bio?`<div style="font-size:12px;color:var(--t2);line-height:1.5;margin-bottom:12px">${esc(u.bio)}</div>`:''}
-  ${isUserPrivate(uid)?`<div style="font-size:11px;color:var(--t3);margin-bottom:8px">🔒 Закритий акаунт</div>`:''}
+  ${isUserPrivate(uid)?`<div style="font-size:11px;color:var(--t3);margin-bottom:8px">🔒 ${t('social.privateAcc')}</div>`:''}
   <div style="display:flex;gap:20px;margin-bottom:14px">
     <div><div style="font-size:14px;font-weight:700">${uPosts}</div><div style="font-size:10px;color:var(--t2)">постів</div></div>
     <div><div style="font-size:14px;font-weight:700">${followers}</div><div style="font-size:10px;color:var(--t2)">${t('profile.followers')}</div></div>

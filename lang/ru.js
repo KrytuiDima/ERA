@@ -136,7 +136,7 @@ window.ERA_LANG.ru = {
   },
   explore:{ placeholder:'Поиск пользователей…', notFound:'Никого не найдено' },
   rp:{ recommended:'Рекомендуемые', spectrums:'Популярные Спектры', follow:'Подписаться', following:'Подписан' },
-  time:{ justNow:'только что', min:'м назад', hour:'ч назад', day:'д назад', yesterday: 'вчера' },
+  time:{ justNow:'только что', min:'{n}м назад', hour:'{n}ч назад', day:'{n}д назад', yesterday: 'вчера' },
   errors:{ fillDesc:'Добавь фото или описание', unknown:'Что-то пошло не так' },
   lang:{ title:'Мова / Language', cancel:'Отмена' },
 };

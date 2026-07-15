@@ -2,7 +2,16 @@
 
 // ── Scroll lock ───────────────────────────────────────────
 function lockScroll()   { document.body.classList.add('scroll-locked'); }
-function unlockScroll() { document.body.classList.remove('scroll-locked'); }
+function unlockScroll() {
+  // Перевіряємо, чи немає інших активних оверлеїв перед розблокуванням
+  const studio = document.getElementById('studio');
+  const lb = document.getElementById('lightbox');
+  const open = document.querySelectorAll('.overlay:not(.hidden)');
+
+  if ((!studio || studio.classList.contains('hidden')) && !lb && open.length === 0) {
+    document.body.classList.remove('scroll-locked');
+  }
+}
 
 // ── History API (Керування історією та кнопкою Назад) ─────
 // Модальні вікна інтегровані з історією браузера для коректної роботи кнопки "Назад"
@@ -36,10 +45,10 @@ function _closeTopModal(fromPopState = false) {
     if (!fromPopState && _histDepth > 0) { _histDepth--; history.back(); }
     return;
   }
-  // 3. Фото-редактор (Кропер)
-  const cropModal = document.getElementById('crop-modal');
-  if (cropModal && !cropModal.classList.contains('hidden')) {
-    cancelCrop(fromPopState);
+  // 3. Медіа-студія (Редактор)
+  const studio = document.getElementById('studio');
+  if (studio && !studio.classList.contains('hidden')) {
+    closeStudio(fromPopState);
     return;
   }
   // 4. Стандартні Overlay (Створення поста, Коментарі, Профіль)
@@ -298,127 +307,396 @@ function showPostMenu(pid,x,y) {
   document.body.appendChild(menu);
 }
 
-// ── Crop tool (Медіа-редактор) ─────────────────────────────
-// Професійний фронтенд-кропер для постів, аватарок та банерів
-let _cropCallback = null, _cropX = 0, _cropY = 0, _cropScale = 1, _cropRotate = 0;
-let _cropDragSX = 0, _cropDragSY = 0, _cropDragOX = 0, _cropDragOY = 0, _cropDragging = false;
-let _cropPinchDist = 0, _cropOptions = {};
+/**
+ * ERA MEDIA STUDIO
+ * Професійний фронтенд-редактор для обробки медіа перед публікацією.
+ * Забезпечує дотримання сітки (4:5, 1:1, 16:9), додавання малюнків та тексту.
+ */
 
-// Відкриття редактора фото (пропорції 4:5, 1:1 або 16:9)
-function showCropTool(src, callback, opts = {}) {
-  _cropCallback = callback;
-  _cropX = 0; _cropY = 0; _cropScale = 1; _cropRotate = 0;
-  _cropOptions = { ratio: 4 / 5, round: false, ...opts };
+// ── MEDIA STUDIO (Професійний редактор медіа) ──────────────
+let _stCallback = null, _stImg = null, _stCanvas = null, _stCtx = null;
+let _stBvCanvas = null, _stBvCtx = null; // Brush layer
+let _stTool = 'crop', _stRatio = 4/5, _stRound = false;
+let _stX = 0, _stY = 0, _stScale = 1, _stRotate = 0;
+let _stDragging = false, _stSX = 0, _stSY = 0, _stOX = 0, _stOY = 0;
+let _stPinchDist = 0, _stHistory = [], _stOnMoveRef = null, _stOnEndRef = null;
 
-  const modal = document.getElementById('crop-modal');
-  modal.classList.remove('hidden');
+/**
+ * Відкриття професійного медіа-студіо.
+ * Підтримує кроп (4:5, 1:1, 16:9), малювання пензлем та додавання тексту.
+ */
+function openStudio(src, callback, opts = {}) {
+  _stCallback = callback;
+  _stRatio = opts.ratio || 4/5;
+  _stRound = !!opts.round;
+  _stTool = 'crop';
+  _stX = 0; _stY = 0; _stScale = 1; _stRotate = 0;
+  _stHistory = [];
+
+  const studio = document.getElementById('studio');
+  studio.classList.remove('hidden');
   lockScroll();
-  eraPush('crop');
+  eraPush('studio');
 
-  const img = document.getElementById('crop-img');
-  const zS = document.getElementById('crop-zoom'), rS = document.getElementById('crop-rotate');
-  if (zS) zS.value = 1;
-  if (rS) rS.value = 0;
+  _stCanvas = document.getElementById('studio-canvas');
+  _stCtx = _stCanvas.getContext('2d');
+  _stBvCanvas = document.getElementById('studio-brush-canvas');
+  _stBvCtx = _stBvCanvas.getContext('2d');
 
-  img.onload = () => {
-    _fitCrop(img);
-    _drawCropMask();
+  _stImg = new Image();
+  _stImg.onload = () => {
+    _initStudioStage();
+    setStudioTool('crop');
   };
-  img.src = src;
-  _initCropEvents();
+  _stImg.src = src;
+
+  // Ініціалізація палітри для пензля
+  _initStudioColors();
 }
 
-function _fitCrop(img) {
-  const stage=document.getElementById('crop-stage');
-  const fw=stage.clientWidth*.88, fh=fw/_cropOptions.ratio;
-  _cropScale=Math.max(fw/img.naturalWidth, fh/img.naturalHeight);
-  _cropX=0; _cropY=0;
-  img.style.width=img.naturalWidth+'px'; img.style.height=img.naturalHeight+'px';
-  const zS=document.getElementById('crop-zoom'); if(zS){ zS.value=_cropScale; zS.min=_cropScale*.5; zS.max=_cropScale*5; }
-  _applyTransform(img);
+function _initStudioStage() {
+  const stage = document.getElementById('studio-stage');
+  const wrap = document.getElementById('studio-wrap');
+  const sw = stage.clientWidth, sh = stage.clientHeight;
+
+  // Розрахунок розмірів рамки кропу (88% ширини екрану)
+  const fw = Math.round(sw * 0.88), fh = Math.round(fw / _stRatio);
+  wrap.style.width = fw + 'px';
+  wrap.style.height = fh + 'px';
+  if (_stRound) wrap.style.borderRadius = '50%';
+  else wrap.style.borderRadius = '0';
+
+  _stCanvas.width = _stImg.naturalWidth;
+  _stCanvas.height = _stImg.naturalHeight;
+  _stBvCanvas.width = _stImg.naturalWidth;
+  _stBvCanvas.height = _stImg.naturalHeight;
+
+  // Початковий масштаб, щоб заповнити рамку
+  _stScale = Math.max(fw / _stImg.naturalWidth, fh / _stImg.naturalHeight);
+
+  const zoom = document.getElementById('studio-zoom');
+  if (zoom) {
+    zoom.value = _stScale;
+    zoom.min = _stScale * 0.5;
+    zoom.max = _stScale * 10;
+  }
+
+  _updateStudioTransform();
 }
 
-function _applyTransform(img) {
-  if(!img) img=document.getElementById('crop-img');
-  if(!img) return;
-  img.style.transform=`translate(calc(-50% + ${_cropX}px),calc(-50% + ${_cropY}px)) scale(${_cropScale}) rotate(${_cropRotate}deg)`;
-  img.style.left='50%'; img.style.top='50%'; img.style.position='absolute';
+function _updateStudioTransform() {
+  const wrap = document.getElementById('studio-wrap');
+  const canvases = wrap.querySelectorAll('canvas');
+  const transform = `translate(${_stX}px, ${_stY}px) scale(${_stScale}) rotate(${_stRotate}deg)`;
+  canvases.forEach(c => c.style.transform = transform);
+
+  // Шар тексту має рухатись синхронно з фото
+  const txtLayer = document.getElementById('studio-text-layer');
+  if (txtLayer) txtLayer.style.transform = transform;
+
+  // Перемальовуємо основний канвас
+  _stCtx.clearRect(0, 0, _stCanvas.width, _stCanvas.height);
+  _stCtx.drawImage(_stImg, 0, 0);
 }
 
-function _drawCropMask() {
-  const stage=document.getElementById('crop-stage'), mask=document.getElementById('crop-mask');
-  const sw=stage.clientWidth, sh=stage.clientHeight;
-  const fw=Math.round(sw*.88), fh=Math.round(fw/_cropOptions.ratio);
-  const fx=Math.round((sw-fw)/2), fy=Math.round((sh-fh)/2);
-  mask.innerHTML=`
-    <div class="crop-shade" style="top:0;left:0;right:0;height:${fy}px"></div>
-    <div class="crop-shade" style="top:${fy}px;left:0;width:${fx}px;height:${fh}px"></div>
-    <div class="crop-shade" style="top:${fy}px;right:0;width:${fx}px;height:${fh}px"></div>
-    <div class="crop-shade" style="bottom:0;left:0;right:0;height:${sh-fy-fh}px"></div>
-    <div class="crop-frame-border${_cropOptions.round?' round':''}" style="left:${fx}px;top:${fy}px;width:${fw}px;height:${fh}px">
-      ${_cropOptions.round?'':`
-      <div class="crop-corner tl"></div><div class="crop-corner tr"></div>
-      <div class="crop-corner bl"></div><div class="crop-corner br"></div>
-      <div class="crop-grid-line" style="position:absolute;left:${Math.round(fw/3)}px;top:0;width:1px;height:100%"></div>
-      <div class="crop-grid-line" style="position:absolute;left:${Math.round(fw*2/3)}px;top:0;width:1px;height:100%"></div>
-      <div class="crop-grid-line" style="position:absolute;left:0;top:${Math.round(fh/3)}px;width:100%;height:1px"></div>
-      <div class="crop-grid-line" style="position:absolute;left:0;top:${Math.round(fh*2/3)}px;width:100%;height:1px"></div>
-      `}
-    </div>`;
+function setStudioTool(tool) {
+  _stTool = tool;
+  document.querySelectorAll('.studio-tool').forEach(b => b.classList.toggle('active', b.id === 'st-'+tool));
+  document.querySelectorAll('.studio-panel').forEach(p => p.classList.add('hidden'));
+  document.getElementById('studio-panel-' + tool)?.classList.remove('hidden');
+
+  // Очищення попередніх обробників, щоб не було накладок
+  if (_stOnMoveRef) {
+    window.removeEventListener('mousemove', _stOnMoveRef);
+    window.removeEventListener('touchmove', _stOnMoveRef);
+  }
+  if (_stOnEndRef) {
+    window.removeEventListener('mouseup', _stOnEndRef);
+    window.removeEventListener('touchend', _stOnEndRef);
+  }
+
+  _initToolEvents();
 }
 
-function _initCropEvents() {
-  const s=document.getElementById('crop-stage'), img=document.getElementById('crop-img');
-  s.onmousedown = e=>{ _cropDragging=true; _cropDragSX=e.clientX; _cropDragSY=e.clientY; _cropDragOX=_cropX; _cropDragOY=_cropY; s.classList.add('dragging'); };
-  window.onmousemove = e=>{ if(!_cropDragging)return; _cropX=_cropDragOX+(e.clientX-_cropDragSX); _cropY=_cropDragOY+(e.clientY-_cropDragSY); _applyTransform(); };
-  window.onmouseup = ()=>{ _cropDragging=false; s.classList.remove('dragging'); };
+function _initStudioColors() {
+  const container = document.getElementById('studio-brush-colors');
+  if (!container) return;
+  const colors = ['#ffffff', '#000000', '#ff2d55', '#00c6ff', '#39ff14', '#ff9500', '#9945ff'];
+  container.innerHTML = colors.map(c => `<div class="st-color" style="background:${c}" onclick="_setStudioColor('${c}', this)"></div>`).join('');
+  _setStudioColor('#ffffff', container.firstChild);
+}
 
-  s.onwheel = e=>{ e.preventDefault(); _cropScale=Math.max(_cropScale*.2,Math.min(_cropScale*10,_cropScale-(e.deltaY>0?.05*_cropScale:-.05*_cropScale))); const zS=document.getElementById('crop-zoom'); if(zS)zS.value=_cropScale; _applyTransform(); };
+let _stBrushColor = '#ffffff';
+function _setStudioColor(c, el) {
+  _stBrushColor = c;
+  document.querySelectorAll('.st-color').forEach(x => x.classList.remove('active'));
+  el?.classList.add('active');
+}
 
-  s.ontouchstart = e=>{
-    if(e.touches.length===1){ _cropDragging=true; _cropDragSX=e.touches[0].clientX; _cropDragSY=e.touches[0].clientY; _cropDragOX=_cropX; _cropDragOY=_cropY; }
-    if(e.touches.length===2){ _cropPinchDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); }
+// ── STUDIO TOOLS LOGIC (Кроп, Масштаб, Поворот, Малювання) ──
+
+/**
+ * Ініціалізація подій для інструментів студії (миша, тач, колесо)
+ */
+function _initToolEvents() {
+  const stage = document.getElementById('studio-stage');
+  const zoom = document.getElementById('studio-zoom');
+  const rotate = document.getElementById('studio-rotate');
+
+  // Малювання (Brush) та Панорамування (Crop)
+  const onStart = e => {
+    _stDragging = true;
+    const t = e.touches ? e.touches[0] : e;
+    _stSX = t.clientX; _stSY = t.clientY;
+    _stOX = _stX; _stOY = _stY;
+
+    if (_stTool === 'crop') {
+      if (e.touches?.length === 2) {
+        _stPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      }
+    } else if (_stTool === 'brush') {
+      const rect = _stBvCanvas.getBoundingClientRect();
+      const x = (t.clientX - rect.left) / (rect.width / _stBvCanvas.width);
+      const y = (t.clientY - rect.top) / (rect.height / _stBvCanvas.height);
+
+      _stBvCtx.beginPath();
+      _stBvCtx.moveTo(x, y);
+      _stBvCtx.strokeStyle = _stBrushColor;
+      _stBvCtx.lineWidth = 15 / _stScale;
+      _stBvCtx.lineCap = 'round';
+      _stBvCtx.lineJoin = 'round';
+    } else if (_stTool === 'text') {
+      _addStudioText(t.clientX, t.clientY);
+    }
   };
-  s.ontouchmove = e=>{
-    if(e.touches.length===1&&_cropDragging){ _cropX=_cropDragOX+(e.touches[0].clientX-_cropDragSX); _cropY=_cropDragOY+(e.touches[0].clientY-_cropDragSY); _applyTransform(); }
-    if(e.touches.length===2){ e.preventDefault(); const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); _cropScale=Math.max(_cropScale*.2,Math.min(_cropScale*10,_cropScale*(d/_cropPinchDist))); _cropPinchDist=d; const zS=document.getElementById('crop-zoom'); if(zS)zS.value=_cropScale; _applyTransform(); }
+
+  const onMove = e => {
+    if (!_stDragging) return;
+    const t = e.touches ? e.touches[0] : e;
+
+    if (_stTool === 'crop') {
+      if (e.touches?.length === 2) {
+        const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+        _stScale = Math.max(0.1, Math.min(10, _stScale * (d / _stPinchDist)));
+        _stPinchDist = d;
+        if (zoom) zoom.value = _stScale;
+      } else {
+        _stX = _stOX + (t.clientX - _stSX);
+        _stY = _stOY + (t.clientY - _stSY);
+      }
+      _updateStudioTransform();
+    } else if (_stTool === 'brush') {
+      const rect = _stBvCanvas.getBoundingClientRect();
+      const x = (t.clientX - rect.left) / (rect.width / _stBvCanvas.width);
+      const y = (t.clientY - rect.top) / (rect.height / _stBvCanvas.height);
+      _stBvCtx.lineTo(x, y);
+      _stBvCtx.stroke();
+    }
+    if (e.cancelable) e.preventDefault();
   };
-  s.ontouchend = ()=>{ _cropDragging=false; };
 
-  const zS=document.getElementById('crop-zoom'), rS=document.getElementById('crop-rotate');
-  if(zS) zS.oninput = e=>{ _cropScale=parseFloat(e.target.value); _applyTransform(); };
-  if(rS) rS.oninput = e=>{ _cropRotate=parseFloat(e.target.value); _applyTransform(); };
+  const onEnd = () => {
+    if (_stTool === 'brush' && _stDragging) {
+      _stBvCtx.closePath();
+      _stHistory.push(_stBvCtx.getImageData(0, 0, _stBvCanvas.width, _stBvCanvas.height));
+      document.getElementById('studio-undo').classList.remove('hidden');
+    }
+    _stDragging = false;
+  };
+
+  _stOnMoveRef = onMove; _stOnEndRef = onEnd;
+
+  stage.addEventListener('mousedown', onStart);
+  stage.addEventListener('touchstart', onStart, { passive: false });
+  window.addEventListener('mousemove', onMove, { passive: false });
+  window.addEventListener('touchmove', onMove, { passive: false });
+  window.addEventListener('mouseup', onEnd);
+  window.addEventListener('touchend', onEnd);
+
+  // Слайдери
+  if (zoom) zoom.oninput = e => { _stScale = parseFloat(e.target.value); _updateStudioTransform(); };
+  if (rotate) rotate.oninput = e => { _stRotate = parseFloat(e.target.value); _updateStudioTransform(); };
+
+  // Mouse Wheel Zoom
+  stage.onwheel = e => {
+    if (_stTool !== 'crop') return;
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.95 : 1.05;
+    _stScale = Math.max(0.1, Math.min(10, _stScale * delta));
+    if (zoom) zoom.value = _stScale;
+    _updateStudioTransform();
+  };
 }
 
-function applyCrop() {
-  const img=document.getElementById('crop-img'), stage=document.getElementById('crop-stage');
-  const sw=stage.clientWidth, sh=stage.clientHeight;
-  const fw=Math.round(sw*.88), fh=Math.round(fw/_cropOptions.ratio);
-  const fx=(sw-fw)/2, fy=(sh-fh)/2;
-  const canvas=document.createElement('canvas');
-  const OUT=800; canvas.width=OUT; canvas.height=Math.round(OUT/_cropOptions.ratio);
-  const ctx=canvas.getContext('2d');
+/**
+ * Фіналізація редагування: Кроп + Накладення шарів (малюнок, текст)
+ */
+function _addStudioText(clientX, clientY) {
+  // Замінюємо prompt() на кастомне поле введення
+  const wrap = document.createElement('div');
+  wrap.className = 'studio-text-input-wrap';
+  wrap.innerHTML = `<input type="text" class="st-text-inp" placeholder="${t('crop.textPrompt')}" autofocus>`;
+  document.body.appendChild(wrap);
 
-  ctx.translate(canvas.width/2, canvas.height/2);
-  ctx.rotate(_cropRotate * Math.PI / 180);
-  ctx.scale(_cropScale, _cropScale);
+  const inp = wrap.querySelector('input');
+  inp.focus();
 
-  // Calculate relative position
-  const drawW = img.naturalWidth;
-  const drawH = img.naturalHeight;
-  const dx = (_cropX - (sw/2 - (fx + fw/2))) / _cropScale;
-  const dy = (_cropY - (sh/2 - (fy + fh/2))) / _cropScale;
+  const close = () => {
+    const txt = inp.value.trim();
+    wrap.remove();
+    if (!txt) return;
 
-  ctx.drawImage(img, dx - drawW/2, dy - drawH/2, drawW, drawH);
+    const layer = document.getElementById('studio-text-layer');
+    const item = document.createElement('div');
+    item.className = 'st-text-item';
+    item.textContent = txt;
 
-  const result=canvas.toDataURL('image/jpeg',.9);
-  document.getElementById('crop-modal').classList.add('hidden');
-  if(_cropCallback) _cropCallback(result);
-  _cropCallback=null;
+    const rect = layer.getBoundingClientRect();
+    const x = (clientX - rect.left) / (rect.width / 100);
+    const y = (clientY - rect.top) / (rect.height / 100);
+
+    item.style.left = x + '%';
+    item.style.top = y + '%';
+    item.style.color = _stBrushColor;
+
+    // Додаємо можливість перетягування тексту всередині шару
+    _makeElementDraggable(item, layer);
+
+    item.onclick = (e) => {
+      if (e._wasDrag) return;
+      if (confirm(t('post.delete') + '?')) item.remove();
+    };
+    layer.appendChild(item);
+  };
+
+  inp.onkeydown = e => { if (e.key === 'Enter') close(); };
+  wrap.onclick = e => { if (e.target === wrap) close(); };
 }
 
-function cancelCrop(fromPopState=false) {
-  document.getElementById('crop-modal').classList.add('hidden');
-  _cropCallback=null;
-  if(!fromPopState && _histDepth > 0) { _histDepth--; history.back(); }
+function _makeElementDraggable(el, parent) {
+  let sx = 0, sy = 0, ox = 0, oy = 0, dragging = false;
+
+  const onStart = e => {
+    const t = e.touches ? e.touches[0] : e;
+    sx = t.clientX; sy = t.clientY;
+    ox = el.offsetLeft; oy = el.offsetTop;
+    dragging = true;
+    el._wasDrag = false;
+    if (e.cancelable) e.preventDefault();
+  };
+
+  const onMove = e => {
+    if (!dragging) return;
+    const t = e.touches ? e.touches[0] : e;
+    const dx = t.clientX - sx, dy = t.clientY - sy;
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) el._wasDrag = true;
+
+    const nx = ox + dx, ny = oy + dy;
+    el.style.left = (nx / parent.clientWidth * 100) + '%';
+    el.style.top = (ny / parent.clientHeight * 100) + '%';
+  };
+
+  const onEnd = () => { dragging = false; };
+
+  el.addEventListener('mousedown', onStart);
+  el.addEventListener('touchstart', onStart, { passive: false });
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('touchmove', onMove, { passive: false });
+  window.addEventListener('mouseup', onEnd);
+  window.addEventListener('touchend', onEnd);
+}
+
+function studioUndo() {
+  if (_stHistory.length > 0) {
+    _stHistory.pop();
+    if (_stHistory.length === 0) {
+      _stBvCtx.clearRect(0, 0, _stBvCanvas.width, _stBvCanvas.height);
+      document.getElementById('studio-undo').classList.add('hidden');
+    } else {
+      _stBvCtx.putImageData(_stHistory[_stHistory.length - 1], 0, 0);
+    }
+  }
+}
+
+/**
+ * Фінальний експорт зображення:
+ * 1. Створює канвас високої роздільної здатності (1080p).
+ * 2. Застосовує трансформації (zoom, rotate, pan).
+ * 3. Накладає шари пензля та тексту.
+ * 4. Повертає DataURL у форматі JPEG.
+ */
+function finishStudio() {
+  const stage = document.getElementById('studio-stage');
+  const sw = stage.clientWidth, sh = stage.clientHeight;
+  const fw = Math.round(sw * 0.88), fh = Math.round(fw / _stRatio);
+
+  // Створюємо фінальний канвас (1080p для високої якості)
+  const out = document.createElement('canvas');
+  const OUT_W = 1080, OUT_H = Math.round(1080 / _stRatio);
+  out.width = OUT_W; out.height = OUT_H;
+  const ctx = out.getContext('2d');
+
+  // 1. Малюємо фон (чорний для AMOLED)
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, OUT_W, OUT_H);
+
+  // 2. Рендеримо фото з урахуванням трансформацій
+  ctx.save();
+  ctx.translate(OUT_W/2, OUT_H/2);
+  ctx.rotate(_stRotate * Math.PI / 180);
+
+  // Розрахунок відносних координат кропу
+  const displayToReal = OUT_W / fw;
+  const drawScale = _stScale * displayToReal;
+  ctx.scale(drawScale, drawScale);
+
+  // Центрування та зсув
+  const dx = (_stX / _stScale);
+  const dy = (_stY / _stScale);
+  ctx.drawImage(_stImg, dx - _stImg.naturalWidth/2, dy - _stImg.naturalHeight/2);
+  ctx.restore();
+
+  // 3. Накладаємо шар малювання (Brush)
+  ctx.save();
+  ctx.translate(OUT_W/2, OUT_H/2);
+  ctx.rotate(_stRotate * Math.PI / 180);
+  ctx.scale(drawScale, drawScale);
+  ctx.drawImage(_stBvCanvas, dx - _stImg.naturalWidth/2, dy - _stImg.naturalHeight/2);
+  ctx.restore();
+
+  // 4. Накладаємо текст (висока якість)
+  const txtContainer = document.getElementById('studio-text-layer');
+  const texts = txtContainer.querySelectorAll('.st-text-item');
+  if (texts.length) {
+    texts.forEach(t => {
+      ctx.save();
+      const xPercent = parseFloat(t.style.left) / 100;
+      const yPercent = parseFloat(t.style.top) / 100;
+
+      // Рендеримо текст у координатах вихідного полотна (1080p)
+      ctx.font = '700 48px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // Додаємо тінь для читабельності на будь-якому фоні
+      ctx.shadowColor = 'rgba(0,0,0,0.5)';
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetY = 4;
+
+      ctx.fillStyle = t.style.color || '#fff';
+      ctx.fillText(t.textContent, xPercent * OUT_W, yPercent * OUT_H);
+      ctx.restore();
+    });
+  }
+
+  const result = out.toDataURL('image/jpeg', 0.9);
+  closeStudio();
+  if (_stCallback) _stCallback(result);
+}
+
+function closeStudio(fromPopState = false) {
+  document.getElementById('studio').classList.add('hidden');
+  _stCallback = null;
+  unlockScroll();
+  if (!fromPopState && _histDepth > 0) { _histDepth--; history.back(); }
 }
