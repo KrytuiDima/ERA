@@ -14,8 +14,8 @@ function onRegAva(e) {
   const f = e.target.files[0]; if (!f) return;
   const r = new FileReader();
   r.onload = ev => {
-    // Відкриваємо кропер для аватара
-    showCropTool(ev.target.result, cropped => {
+    // Відкриваємо Студіо для аватара
+    openStudio(ev.target.result, cropped => {
       regAvaData = cropped;
       document.getElementById('reg-ava-img').src = regAvaData;
       document.getElementById('reg-ava-img').classList.remove('hidden');

@@ -85,31 +85,41 @@ async function toggleFollowUser(uid, btn) {
 }
 
 // ── Approve / Decline ─────────────────────────────────────
-// Схвалення запиту: Дія 1 — Дозволити перегляд
-// Це дає користувачу статус підписника та доступ до контенту
+/**
+ * Дворівнева система схвалення для приватних акаунтів
+ * Дія 1: "Дозволити перегляд" — робить користувача підписником.
+ * Дія 2: "+ Підписатися у відповідь" — встановлює статус "Друзі".
+ */
+
+// Дія 1: Дозволити перегляд (користувач стає підписником)
 async function approveRequest(fromUid) {
   FOLLOWERS.set(fromUid, true);
   REQUESTS.delete(fromUid);
 
-  // Оновлюємо статус у списку сповіщень
+  // Оновлюємо тип сповіщення на 'follow', щоб з'явилася кнопка "Підписатися у відповідь"
   const n = NOTIFS.find(x => x.userId === fromUid && x.type === 'request');
-  if (n) n._approved = true;
+  if (n) {
+    n.type = 'follow'; // Тепер це звичайна підписка, яку можна "відбити"
+    n._approved = true;
+  }
 
-  // Надсилаємо сповіщення про схвалення
+  // Надсилаємо сповіщення про те, що запит схвалено
   addNotif({ type: 'approved', fromUid: APP.user.id, toUid: fromUid });
   showToast(t('profile.requestApproved'));
 
-  // Оновлюємо інтерфейс у всіх активних зонах
+  // Оновлюємо інтерфейс
   if (document.getElementById('follow-requests-screen')) renderFollowRequests();
   if (APP.view === 'profile') renderProfile(APP.profileUid);
   if (APP.view === 'notif') renderNotif();
   renderNotifBadge();
 }
 
-// Крок 2 — Підписатися у відповідь (стають друзями)
+// Дія 2: Підписатися у відповідь (взаємна підписка = Друзі)
 async function followBack(uid) {
   await followUser(uid);
+  // Після взаємної підписки статус автоматично стане "Друзі" завдяки isFriend()
   if (APP.view === 'notif') renderNotif();
+  if (APP.view === 'profile') renderProfile(APP.profileUid);
 }
 
 async function declineRequest(fromUid) {

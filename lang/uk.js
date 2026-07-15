@@ -94,8 +94,8 @@ window.ERA_LANG.uk = {
     wantsToFollow:'@{user} хоче підписатися на тебе',
     requestApproved:'@{user} схвалив твій запит',
     mentioned:'@{user} згадав тебе у пості',
-    followBack:'Підписатися у відповідь',
-    approve:'Схвалити', decline:'Видалити',
+    followBack:'+ Підписатися у відповідь',
+    approve:'Дозволити перегляд', decline:'Видалити',
   },
   mood:{
     question:'Як твій настрій сьогодні?',
@@ -136,7 +136,7 @@ window.ERA_LANG.uk = {
   },
   explore:{ placeholder:'Пошук юзерів…', notFound:'Нікого не знайдено' },
   rp:{ recommended:'Рекомендовані', spectrums:'Популярні Спектри', follow:'Стежити', following:'Стежу' },
-  time:{ justNow:'щойно', min:'хв тому', hour:'год тому', day:'дн. тому', yesterday: 'вчора' },
+  time:{ justNow:'щойно', min:'{n}хв тому', hour:'{n}год тому', day:'{n}дн. тому', yesterday: 'вчора' },
   errors:{ fillDesc:'Додай фото або опис', unknown:'Щось пішло не так' },
   lang:{ title:'Мова / Language', cancel:'Скасувати' },
 };

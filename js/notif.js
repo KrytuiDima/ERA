@@ -93,6 +93,9 @@ function renderNotifRow(n, idx) {
     ? `<button onclick="event.stopPropagation(); followBack('${n.userId}')" style="padding:6px 14px; border-radius:20px; border:1px solid var(--b2); background:transparent; color:var(--t1); font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap; flex-shrink:0; margin-left:auto">${isReq ? t('profile.requested') : t('notif.followBack')}</button>`
     : '';
 
+  // Клік по сповіщенню відкриває пост з фокусом на коментар, якщо потрібно
+  const openPostAction = post ? `expandPost('${post.id}', null, '${n.type==='comment'?n.id:''}')` : '';
+
   return `<div class="notif-row" style="display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--b1); animation:fadeUp .22s ease ${idx * 25}ms both; position: relative">
   <!-- Маркер новизни (крапка кольору вайбу юзера) -->
   ${n.unread ? `<div style="position:absolute; left:5px; top:50%; transform:translateY(-50%); width:6px; height:6px; border-radius:50%; background:${dotColor}; box-shadow:0 0 6px ${dotColor}"></div>` : ''}
@@ -103,7 +106,7 @@ function renderNotifRow(n, idx) {
   </div>
 
   <!-- Зона B: Текст -> Пост -->
-  <div style="flex:1; min-width:0; cursor:pointer" onclick="${post ? `expandPost('${post.id}')` : ''}">
+  <div style="flex:1; min-width:0; cursor:pointer" onclick="${openPostAction}">
     <div style="font-size:13px; color:var(--t1); line-height:1.4">${text}</div>
     <div style="font-size:10px; color:var(--t3); margin-top:3px">${fmtTime(n.ts)}</div>
     ${actionBtns}
@@ -112,7 +115,7 @@ function renderNotifRow(n, idx) {
   ${followBackBtn}
 
   <!-- Зона C: Прев'ю поста -> Лайтбокс -->
-  ${post ? `<div style="width:40px; height:40px; border-radius:8px; overflow:hidden; flex-shrink:0; background:${postBg}; cursor:pointer" onclick="expandPost('${post.id}')">
+  ${post ? `<div style="width:40px; height:40px; border-radius:8px; overflow:hidden; flex-shrink:0; background:${postBg}; cursor:pointer" onclick="${openPostAction}">
     ${postImg ? `<img src="${postImg}" style="width:100%; height:100%; object-fit:cover">` : ''}
   </div>` : ''}
 </div>`;

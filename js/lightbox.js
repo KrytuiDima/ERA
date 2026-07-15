@@ -1,18 +1,36 @@
 // js/lightbox.js — Lightbox with physics (Перегляд медіа)
 
-function expandPost(pid, ctx) {
+/**
+ * Відкриття поста у повний екран
+ * @param {string} pid - ID поста
+ * @param {string} [ctx] - Контекст ('profile' або 'feed')
+ * @param {string} [focusCmtId] - ID коментаря для автоматичного підскролу
+ */
+function expandPost(pid, ctx, focusCmtId) {
   const p = POSTS.find(x=>x.id===pid);
   if (p && !SESSION_VIEWS.has('lb-'+pid)) { SESSION_VIEWS.add('lb-'+pid); p.views=(p.views||0)+1; }
+
   if (ctx==='profile' && APP.profileUid) {
     LB_LIST = POSTS.filter(p=>p.userId===APP.profileUid).sort((a,b)=>b.ts-a.ts);
   } else {
     const feed = getFeedPosts();
     LB_LIST = feed.length ? feed : [...POSTS].sort((a,b)=>b.ts-a.ts);
   }
+
   LB_IDX = LB_LIST.findIndex(p=>p.id===pid);
   if (LB_IDX<0) LB_IDX=0;
-  lockScroll(); eraPush('lightbox');
+
+  lockScroll();
+  eraPush('lightbox');
   buildLightbox();
+
+  // Якщо передано ID коментаря — відкриваємо шторку коментарів та скролимо
+  if (focusCmtId) {
+    setTimeout(() => {
+      closeLightbox(); // Закриваємо лайтбокс, бо коментарі мають свою шторку
+      openCmts(pid, focusCmtId);
+    }, 100);
+  }
 }
 
 function _closeLightboxInternal(fromPopState=false) {
@@ -103,7 +121,14 @@ function buildLightbox(dir=0) {
 
   if (dir!==0) lb.querySelector('.lb-wrap')?.classList.add(dir>0?'anim-sl':'anim-sr');
 
-  lb.addEventListener('wheel', e=>{ e.preventDefault(); lbNav(e.deltaY>0?1:-1); },{passive:false});
+  lb.addEventListener('wheel', e=>{
+    if (lbCarState.total > 1) {
+      // Якщо це карусель — не перемикаємо пости колесом миші, щоб не заважати скролу
+      return;
+    }
+    e.preventDefault();
+    lbNav(e.deltaY>0?1:-1);
+  },{passive:false});
 
   if(hasMulti) {
     setTimeout(() => initCarousel(p.id, imgs.length, true), 0);

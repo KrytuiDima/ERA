@@ -45,6 +45,10 @@ ${filtered.length === 0
       else if (isF) statusTxt = t('profile.youFollow');
       else if (isReq) statusTxt = t('profile.requested');
 
+      const uVibe = currentVibeColor(u);
+      const uCols = vibeColors(uVibe, hashStr(u.id));
+      const neonStyle = frnd ? `color:${myCols[0]}; text-shadow:0 0 5px ${myCols[0]}66` : '';
+
       return `<div class="rp-user" style="background: var(--s1); border: 1px solid var(--b1); padding: 12px; border-radius:14px; transition: transform .2s" onclick="openUserCard('${u.id}')">
         <!-- Аватар -->
         <div style="width:46px; height:46px; flex-shrink:0; position:relative">
@@ -52,8 +56,8 @@ ${filtered.length === 0
           ${isUserPrivate(u.id) ? `<div style="position:absolute; bottom:-2px; right:-2px; font-size:10px; background:var(--s2); border-radius:50%; padding:2px; border:1px solid var(--b1)">🔒</div>` : ''}
         </div>
         <!-- Інфо та статус -->
-        <div style="flex:1; min-width:0; margin-left:4px">
-          <div style="font-size:14px; font-weight:700; color:var(--t1)">@${esc(u.username)}</div>
+        <div style="flex:1; min-width:0; margin-left:8px">
+          <div style="font-size:14px; font-weight:700; color:var(--t1); ${neonStyle}">@${esc(u.username)}</div>
           <div style="font-size:12px; color:var(--t2)">${esc(u.displayName || '') || '&nbsp;'}</div>
           ${statusTxt ? `<div style="font-size:10px; font-weight:600; color:${frnd ? myCols[0] : 'var(--t3)'}; margin-top:3px">${statusTxt}</div>` : ''}
         </div>
